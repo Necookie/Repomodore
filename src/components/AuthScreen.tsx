@@ -7,11 +7,10 @@ import {
   ScrollView,
   KeyboardAvoidingView,
   Platform,
-  Linking,
   Pressable,
 } from 'react-native';
 import { useSignIn, useSignUp, useOAuth } from '@clerk/clerk-expo';
-import { Colors, Radius, Spacing, Typography } from '@/src/constants/theme';
+import { Colors, Radius, Spacing } from '@/src/constants/theme';
 import { Mascot } from '@/src/components/Mascot';
 import { Button } from '@/src/components/Button';
 import { Card } from '@/src/components/Card';

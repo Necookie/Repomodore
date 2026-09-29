@@ -1,5 +1,5 @@
 import { activityRepository } from '@/src/storage/ActivityRepository';
-import { ActivityRecord, UserSettings } from '@/src/storage/schema';
+import { ActivityRecord } from '@/src/storage/schema';
 
 const API_ORIGIN =
   process.env.EXPO_PUBLIC_SYNC_API_URL || 'http://localhost:3001';
