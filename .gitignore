@@ -1,0 +1,46 @@
+# Node dependencies
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Environment files - sensitive secrets must NEVER be tracked
+.env
+.env.local
+.env.*.local
+.env.production
+.env.staging
+*.env
+!.env.example
+
+# Expo & Metro
+.expo/
+dist/
+web-build/
+.expo-shared/
+
+# Native builds
+android/
+ios/
+*.orig.*
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+
+# Testing & Coverage
+coverage/
+*.lcov
+.nyc_output
+
+# Temporary and cache
+tmp/
+temp/
+.cache/
+*.log
+
+# System files
+.DS_Store
+Thumbs.db
