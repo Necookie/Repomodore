@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -8,6 +8,7 @@ import {
   Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useAuth } from '@clerk/clerk-expo';
 import { Colors, Radius, Spacing } from '@/src/constants/theme';
 import { Mascot } from '@/src/components/Mascot';
 import { Button } from '@/src/components/Button';
@@ -16,9 +17,64 @@ import { CircularProgressRing } from '@/src/components/CircularProgressRing';
 import { SegmentedControl } from '@/src/components/SegmentedControl';
 import { MovementBreakView } from '@/src/components/MovementBreakView';
 import { useTimer } from '@/src/hooks/useTimer';
-import { formatTime, TimerMode } from '@/src/engine/timerEngine';
+import { formatTime, TimerMode, CompletedActivityEvent } from '@/src/engine/timerEngine';
+import { activityRepository } from '@/src/storage/ActivityRepository';
+import { ActivityRecord, DailyStats } from '@/src/storage/schema';
 
 export default function TimerScreen() {
+  const { userId } = useAuth();
+  const currentUserId = userId ?? 'guest';
+
+  const [todayStats, setTodayStats] = useState<DailyStats>({
+    dateKey: '',
+    dayLabel: 'Today',
+    focusBlocks: 0,
+    focusMinutes: 0,
+    reportedReps: 0,
+    skippedBreaks: 0,
+  });
+
+  const loadTodayStats = useCallback(async () => {
+    try {
+      const stats = await activityRepository.getTodayStats(currentUserId);
+      setTodayStats(stats);
+    } catch (err) {
+      console.warn('Error loading today stats:', err);
+    }
+  }, [currentUserId]);
+
+  useEffect(() => {
+    loadTodayStats();
+  }, [loadTodayStats]);
+
+  const handleActivityCompleted = useCallback(
+    async (activity: CompletedActivityEvent) => {
+      try {
+        const record: ActivityRecord = {
+          id: activity.id,
+          userId: currentUserId,
+          mode: activity.mode,
+          startedAt: activity.startedAt,
+          completedAt: activity.completedAt,
+          focusSeconds: activity.focusSeconds,
+          breakSeconds: activity.breakSeconds,
+          movementLabel: activity.movementLabel,
+          repGoal: activity.repGoal,
+          reportedReps: activity.reportedReps,
+          breakOutcome: activity.breakOutcome,
+          syncStatus: 'pending',
+          updatedAt: new Date().toISOString(),
+          deletedAt: null,
+        };
+        await activityRepository.saveActivity(record);
+        await loadTodayStats();
+      } catch (err) {
+        console.warn('Error saving completed activity:', err);
+      }
+    },
+    [currentUserId, loadTodayStats]
+  );
+
   const {
     snapshot,
     start,
@@ -28,12 +84,8 @@ export default function TimerScreen() {
     setMode,
     recordBreakResponse,
     endBreakEarly,
-  } = useTimer();
-
-  const [todayStats] = useState({
-    focusBlocks: 0,
-    squats: 0,
-    focusMinutes: 0,
+  } = useTimer({
+    onActivityCompleted: handleActivityCompleted,
   });
 
   const isBreakPhase =
@@ -227,7 +279,7 @@ export default function TimerScreen() {
             </View>
             <View style={styles.statDivider} />
             <View style={styles.statCol}>
-              <Text style={styles.statNum}>{todayStats.squats}</Text>
+              <Text style={styles.statNum}>{todayStats.reportedReps}</Text>
               <Text style={styles.statLabel}>Squats</Text>
             </View>
             <View style={styles.statDivider} />
