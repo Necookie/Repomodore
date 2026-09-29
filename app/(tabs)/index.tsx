@@ -9,7 +9,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '@clerk/clerk-expo';
-import { Colors, Radius, Spacing } from '@/src/constants/theme';
+import { Colors, Spacing } from '@/src/constants/theme';
 import { Mascot } from '@/src/components/Mascot';
 import { Button } from '@/src/components/Button';
 import { Card } from '@/src/components/Card';

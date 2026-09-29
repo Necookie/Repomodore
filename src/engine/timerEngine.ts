@@ -162,7 +162,7 @@ export function resetTimer(
 export function recordBreakResponse(
   current: TimerSnapshot,
   action: 'done' | 'skip' | 'other' | 'rest_only',
-  otherMovementName?: string
+  _otherMovementName?: string
 ): TimerSnapshot {
   // Only allow updating response once or transitioning while break is active
   if (current.state !== 'running_break' && current.state !== 'paused_break') {

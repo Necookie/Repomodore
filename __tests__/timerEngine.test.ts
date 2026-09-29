@@ -8,7 +8,6 @@ import {
   endBreakEarly,
   tickTimer,
   restoreTimerState,
-  DEFAULT_CONFIG,
   TimerConfig,
 } from '../src/engine/timerEngine';
 
@@ -149,6 +148,18 @@ describe('Timer Engine', () => {
     expect(restored.snapshot.state).toBe('ready_focus');
     expect(restored.completedActivity).not.toBeNull();
     expect(restored.completedActivity?.focusSeconds).toBe(10);
+  });
+
+  it('ends break early and lands in ready_focus with recorded activity', () => {
+    const initial = createInitialSnapshot('study_squats', testConfig);
+    const started = startFocus(initial, testConfig, baseTime);
+    const inBreak = tickTimer(started, testConfig, baseTime + 10000).snapshot;
+
+    const { snapshot, completedActivity } = endBreakEarly(inBreak, baseTime + 12000);
+    expect(snapshot.state).toBe('ready_focus');
+    expect(snapshot.remainingSeconds).toBe(0);
+    expect(completedActivity).not.toBeNull();
+    expect(completedActivity?.breakOutcome).toBe('skipped');
   });
 
   it('resets timer cleanly back to initial snapshot', () => {

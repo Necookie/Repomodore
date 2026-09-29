@@ -1,6 +1,6 @@
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView, Platform } from 'react-native';
-import { Colors, Radius, Spacing } from '@/src/constants/theme';
+import { View, Text, StyleSheet, ScrollView } from 'react-native';
+import { Colors, Spacing } from '@/src/constants/theme';
 import { Mascot } from '@/src/components/Mascot';
 import { Button } from '@/src/components/Button';
 import { Card } from '@/src/components/Card';

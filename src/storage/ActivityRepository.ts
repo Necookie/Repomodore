@@ -43,7 +43,7 @@ class WebAndMemoryRepository implements IActivityRepository {
   }
 
   private initIndexedDB(): Promise<void> {
-    return new Promise((resolve, reject) => {
+    return new Promise((resolve, _reject) => {
       try {
         const request = window.indexedDB.open(this.dbName, 1);
         request.onupgradeneeded = (event: any) => {
