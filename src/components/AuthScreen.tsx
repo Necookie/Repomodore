@@ -10,12 +10,24 @@ import {
   Pressable,
 } from 'react-native';
 import { useSignIn, useSignUp, useOAuth } from '@clerk/clerk-expo';
+import * as WebBrowser from 'expo-web-browser';
 import { Colors, Radius, Spacing } from '@/src/constants/theme';
 import { Mascot } from '@/src/components/Mascot';
 import { Button } from '@/src/components/Button';
 import { Card } from '@/src/components/Card';
 
+export const useWarmUpBrowser = () => {
+  React.useEffect(() => {
+    void WebBrowser.warmUpAsync();
+    return () => {
+      void WebBrowser.coolDownAsync();
+    };
+  }, []);
+};
+
 export const AuthScreen: React.FC = () => {
+  useWarmUpBrowser();
+
   const { signIn, setActive: setSignInActive, isLoaded: isSignInLoaded } = useSignIn();
   const { signUp, setActive: setSignUpActive, isLoaded: isSignUpLoaded } = useSignUp();
 
@@ -35,9 +47,12 @@ export const AuthScreen: React.FC = () => {
       setLoading(true);
       setErrorMessage(null);
       const result = await flow();
-      if (result?.createdSessionId) {
-        if (setSignInActive) {
-          await setSignInActive({ session: result.createdSessionId });
+      const { createdSessionId, setActive } = result || {};
+      if (createdSessionId) {
+        if (setActive) {
+          await setActive({ session: createdSessionId });
+        } else if (setSignInActive) {
+          await setSignInActive({ session: createdSessionId });
         }
       }
     } catch (err: any) {

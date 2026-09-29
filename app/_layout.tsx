@@ -1,9 +1,13 @@
 import React from 'react';
 import { ClerkProvider, ClerkLoaded } from '@clerk/clerk-expo';
 import { Slot } from 'expo-router';
+import * as WebBrowser from 'expo-web-browser';
 import { tokenCache } from '@/src/utils/tokenCache';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
+
+// Required by Clerk and Expo AuthSession to handle browser redirect resolution
+WebBrowser.maybeCompleteAuthSession();
 
 const publishableKey = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY ?? '';
 
