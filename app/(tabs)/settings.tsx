@@ -18,19 +18,25 @@ import { AccountControl } from '@/src/components/AccountControl';
 import { activityRepository } from '@/src/storage/ActivityRepository';
 import { UserSettings, DEFAULT_USER_SETTINGS } from '@/src/storage/schema';
 
+import { syncNow, deleteRemoteData } from '@/src/services/syncService';
+
 export default function SettingsScreen() {
-  const { userId } = useAuth();
+  const { userId, getToken } = useAuth();
   const currentUserId = userId ?? 'guest';
 
   const [settings, setSettings] = useState<UserSettings>(() =>
     DEFAULT_USER_SETTINGS(currentUserId)
   );
   const [syncStatus, setSyncStatus] = useState<string>('Saved on this device');
+  const [syncing, setSyncing] = useState<boolean>(false);
 
   const loadSettings = useCallback(async () => {
     try {
       const s = await activityRepository.getSettings(currentUserId);
       setSettings(s);
+      if (s.syncEnabled) {
+        setSyncStatus('Synced');
+      }
     } catch (err) {
       console.warn('Error loading settings:', err);
     }
@@ -53,6 +59,24 @@ export default function SettingsScreen() {
     await activityRepository.saveSettings(updated);
   };
 
+  const handleManualSync = async () => {
+    if (!settings.syncEnabled) return;
+    setSyncing(true);
+    setSyncStatus('Syncing...');
+    const res = await syncNow(currentUserId, getToken);
+    setSyncing(false);
+    if (res.success) {
+      setSyncStatus('Synced');
+      if (Platform.OS === 'web') {
+        alert(`Sync complete! Pushed: ${res.pushedCount}, Pulled: ${res.pulledCount}`);
+      } else {
+        Alert.alert('Sync Complete', `Pushed: ${res.pushedCount}, Pulled: ${res.pulledCount}`);
+      }
+    } else {
+      setSyncStatus('Sync needs retry');
+    }
+  };
+
   const handleFocusChange = (deltaMinutes: number) => {
     const currentMins = Math.round(settings.focusDurationSeconds / 60);
     const newMins = Math.min(180, Math.max(1, currentMins + deltaMinutes));
@@ -70,29 +94,33 @@ export default function SettingsScreen() {
     updateSetting('repGoal', newReps);
   };
 
-  const handleSyncToggle = (enabled: boolean) => {
+  const handleSyncToggle = async (enabled: boolean) => {
     if (enabled) {
       const msg =
         'Enable Cloud Sync?\n\nThis will synchronize your completed focus records and timer settings with Turso libSQL. All data is scoped strictly to your Clerk account.';
       if (Platform.OS === 'web') {
         if (window.confirm(msg)) {
-          updateSetting('syncEnabled', true);
-          setSyncStatus('Synced');
+          await updateSetting('syncEnabled', true);
+          setSyncStatus('Syncing...');
+          const res = await syncNow(currentUserId, getToken);
+          setSyncStatus(res.success ? 'Synced' : 'Sync needs retry');
         }
       } else {
         Alert.alert('Enable Cloud Sync', msg, [
           { text: 'Cancel', style: 'cancel' },
           {
             text: 'Enable',
-            onPress: () => {
-              updateSetting('syncEnabled', true);
-              setSyncStatus('Synced');
+            onPress: async () => {
+              await updateSetting('syncEnabled', true);
+              setSyncStatus('Syncing...');
+              const res = await syncNow(currentUserId, getToken);
+              setSyncStatus(res.success ? 'Synced' : 'Sync needs retry');
             },
           },
         ]);
       }
     } else {
-      updateSetting('syncEnabled', false);
+      await updateSetting('syncEnabled', false);
       setSyncStatus('Saved on this device');
     }
   };
@@ -147,7 +175,13 @@ export default function SettingsScreen() {
       'Delete remote cloud history on Turso?\nYour local copy on this device will be retained.';
     if (Platform.OS === 'web') {
       if (window.confirm(msg)) {
-        alert('Remote data deletion requested and confirmed.');
+        deleteRemoteData(currentUserId, getToken).then((res) => {
+          if (res.success) {
+            alert('Remote data deleted successfully from Turso.');
+          } else {
+            alert(`Error: ${res.error || 'Failed to delete remote data'}`);
+          }
+        });
       }
     } else {
       Alert.alert('Delete Cloud Data', msg, [
@@ -155,8 +189,13 @@ export default function SettingsScreen() {
         {
           text: 'Delete Remote Data',
           style: 'destructive',
-          onPress: () => {
-            Alert.alert('Success', 'Remote data deletion requested and confirmed.');
+          onPress: async () => {
+            const res = await deleteRemoteData(currentUserId, getToken);
+            if (res.success) {
+              Alert.alert('Success', 'Remote data deleted successfully from Turso.');
+            } else {
+              Alert.alert('Error', res.error || 'Failed to delete remote data.');
+            }
           },
         },
       ]);
@@ -323,6 +362,18 @@ export default function SettingsScreen() {
               <Text style={styles.statusBadgeText}>{syncStatus}</Text>
             </View>
           </View>
+
+          {settings.syncEnabled ? (
+            <View style={styles.btnRow}>
+              <Button
+                title="Sync Now"
+                variant="primary"
+                loading={syncing}
+                onPress={handleManualSync}
+                style={styles.actionBtn}
+              />
+            </View>
+          ) : null}
 
           <View style={styles.divider} />
 
