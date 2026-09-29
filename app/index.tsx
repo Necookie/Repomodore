@@ -1,31 +1,38 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, ActivityIndicator, StyleSheet } from 'react-native';
+import { useAuth } from '@clerk/clerk-expo';
+import { Redirect } from 'expo-router';
+import { Colors } from '@/src/constants/theme';
+import { Mascot } from '@/src/components/Mascot';
+import { AuthScreen } from '@/src/components/AuthScreen';
 
-export default function IndexScreen() {
-  return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Repomodore</Text>
-      <Text style={styles.subtitle}>Focus. Rep. Repeat.</Text>
-    </View>
-  );
+export default function IndexRoute() {
+  const { isLoaded, isSignedIn } = useAuth();
+
+  if (!isLoaded) {
+    return (
+      <View style={styles.loadingContainer}>
+        <Mascot pose="avatar" size={80} alt="Repomodore loading" />
+        <ActivityIndicator size="large" color={Colors.accent} style={styles.spinner} />
+      </View>
+    );
+  }
+
+  if (!isSignedIn) {
+    return <AuthScreen />;
+  }
+
+  return <Redirect href="/(tabs)" />;
 }
 
 const styles = StyleSheet.create({
-  container: {
+  loadingContainer: {
     flex: 1,
-    backgroundColor: '#FBF7F2',
+    backgroundColor: Colors.canvas,
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 24,
   },
-  title: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#20232A',
-    marginBottom: 8,
-  },
-  subtitle: {
-    fontSize: 16,
-    color: '#687078',
+  spinner: {
+    marginTop: 20,
   },
 });
