@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { useSignIn, useSignUp, useOAuth } from '@clerk/clerk-expo';
 import * as WebBrowser from 'expo-web-browser';
+import * as Linking from 'expo-linking';
 import { Colors, Radius, Spacing } from '@/src/constants/theme';
 import { Mascot } from '@/src/components/Mascot';
 import { Button } from '@/src/components/Button';
@@ -44,11 +45,14 @@ export const AuthScreen: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const handleOAuth = async (flow: () => Promise<any>, providerName: string) => {
+  const handleOAuth = async (flow: (options?: any) => Promise<any>, providerName: string) => {
     try {
       setLoading(true);
       setErrorMessage(null);
-      const result = await flow();
+      const redirectUrl = Linking.createURL('/oauth-native-callback', {
+        scheme: 'repomodore',
+      });
+      const result = await flow({ redirectUrl });
       const { createdSessionId, setActive } = result || {};
       if (createdSessionId) {
         if (setActive) {
