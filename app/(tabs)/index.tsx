@@ -11,6 +11,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '@clerk/clerk-expo';
 import { Colors, Spacing } from '@/src/constants/theme';
 import { Mascot } from '@/src/components/Mascot';
+import { FocusCompanion } from '@/src/components/FocusCompanion';
 import { Button } from '@/src/components/Button';
 import { Card } from '@/src/components/Card';
 import { CircularProgressRing } from '@/src/components/CircularProgressRing';
@@ -251,24 +252,7 @@ export default function TimerScreen() {
           />
         </View>
 
-        {/* Supporting cards below the timer */}
-        {snapshot.mode === 'study_squats' ? (
-          <Card style={styles.nextUpCard}>
-            <View style={styles.nextUpRow}>
-              <View style={styles.nextUpTextContainer}>
-                <Text style={styles.nextUpLabel}>Next Up</Text>
-                <Text style={styles.nextUpTitle}>
-                  {snapshot.repGoal} Squats / 5 min break
-                </Text>
-                <Text style={styles.nextUpSub}>
-                  Prompts immediately after focus completes
-                </Text>
-              </View>
-              <Mascot pose="squat" size={80} alt="Next up squat preview" />
-            </View>
-          </Card>
-        ) : null}
-
+        <FocusCompanion playing={isRunning} repGoal={snapshot.mode === 'study_squats' ? snapshot.repGoal : undefined} />
         {/* Daily Summary Card */}
         <Card style={styles.todayCard}>
           <Text style={styles.todayTitle}>Today</Text>
@@ -375,38 +359,6 @@ const styles = StyleSheet.create({
   },
   resetBtn: {
     width: '100%',
-  },
-  nextUpCard: {
-    width: '100%',
-    marginBottom: Spacing.md,
-    padding: Spacing.md,
-  },
-  nextUpRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  nextUpTextContainer: {
-    flex: 1,
-    marginRight: Spacing.sm,
-  },
-  nextUpLabel: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: Colors.accent,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  nextUpTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: Colors.ink,
-    marginTop: 2,
-  },
-  nextUpSub: {
-    fontSize: 12,
-    color: Colors.muted,
-    marginTop: 2,
   },
   todayCard: {
     width: '100%',
