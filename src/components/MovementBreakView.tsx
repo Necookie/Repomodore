@@ -43,7 +43,7 @@ export const MovementBreakView: React.FC<MovementBreakViewProps> = ({
 
           <View style={styles.mascotContainer}>
             {showDemo ? (
-              <SquatDemonstration key={snapshot.activeRecordId ?? 'break'} playing={isRunning && !demoPaused} replayKey={replayKey} reducedMotion={reducedMotion} />
+              <SquatDemonstration key={snapshot.activeRecordId ?? 'break'} playing={!demoPaused} replayKey={replayKey} reducedMotion={reducedMotion} />
             ) : (
               <Mascot key={snapshot.breakOutcome} pose="break" size={232} motion={isDone ? 'celebrate' : 'calm'} playing={isRunning} reducedMotion={reducedMotion} />
             )}
@@ -51,8 +51,8 @@ export const MovementBreakView: React.FC<MovementBreakViewProps> = ({
 
           {showDemo ? (
             <View style={styles.demoControls}>
-              <Button title="Replay demo" variant="ghost" size="small" style={styles.demoButton} disabled={!isRunning} onPress={() => { setDemoPaused(false); setReplayKey(key => key + 1); }} accessibilityHint="Shows two demonstration squats. Does not record reps." />
-              <Button title={demoPaused ? 'Play demo' : 'Pause demo'} variant="ghost" size="small" style={styles.demoButton} disabled={!isRunning} onPress={() => setDemoPaused(paused => !paused)} />
+              <Button title="Replay demo" variant="ghost" size="small" style={styles.demoButton} onPress={() => { setDemoPaused(false); setReplayKey(key => key + 1); }} accessibilityHint="Shows two demonstration squats. Does not record reps." />
+              <Button title={demoPaused ? 'Play demo' : 'Pause demo'} variant="ghost" size="small" style={styles.demoButton} onPress={() => setDemoPaused(paused => !paused)} />
             </View>
           ) : null}
 
