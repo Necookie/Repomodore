@@ -1,10 +1,17 @@
 import React from 'react';
-import { Tabs } from 'expo-router';
+import { Tabs, Redirect } from 'expo-router';
+import { useAuth } from '@clerk/clerk-expo';
 import { Colors } from '@/src/constants/theme';
 import { Timer, BarChart3, Settings } from 'lucide-react-native';
 import { Platform } from 'react-native';
 
 export default function TabLayout() {
+  const { isLoaded, isSignedIn } = useAuth();
+
+  if (isLoaded && !isSignedIn) {
+    return <Redirect href="/" />;
+  }
+
   return (
     <Tabs
       screenOptions={{

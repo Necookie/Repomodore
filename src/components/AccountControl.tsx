@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, Alert, Platform, Image } from 'react-native';
 import { useUser, useAuth } from '@clerk/clerk-expo';
+import { useRouter } from 'expo-router';
 import { Colors, Radius, Spacing } from '@/src/constants/theme';
 import { Button } from '@/src/components/Button';
 import { Mascot } from '@/src/components/Mascot';
@@ -10,6 +11,7 @@ interface AccountControlProps {
 }
 
 export const AccountControl: React.FC<AccountControlProps> = ({ onSignOutComplete }) => {
+  const router = useRouter();
   const { user } = useUser();
   const { signOut } = useAuth();
   const [signingOut, setSigningOut] = useState(false);
@@ -22,6 +24,7 @@ export const AccountControl: React.FC<AccountControlProps> = ({ onSignOutComplet
       setSigningOut(true);
       await signOut();
       onSignOutComplete?.();
+      router.replace('/');
     } catch (err) {
       console.warn('Sign out error:', err);
     } finally {
