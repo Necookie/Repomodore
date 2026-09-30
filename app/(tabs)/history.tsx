@@ -8,13 +8,16 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '@clerk/clerk-expo';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { Colors, Radius, Spacing } from '@/src/constants/theme';
 import { Card } from '@/src/components/Card';
 import { Mascot } from '@/src/components/Mascot';
+import { Button } from '@/src/components/Button';
 import { activityRepository } from '@/src/storage/ActivityRepository';
 import { ActivityRecord, DailyStats } from '@/src/storage/schema';
 
 export default function HistoryScreen() {
+  const router = useRouter();
   const { userId } = useAuth();
   const [activities, setActivities] = useState<ActivityRecord[]>([]);
   const [dailyStats, setDailyStats] = useState<DailyStats[]>([]);
@@ -35,9 +38,11 @@ export default function HistoryScreen() {
     }
   }, [currentUserId]);
 
-  useEffect(() => {
-    loadData();
-  }, [loadData]);
+  useFocusEffect(
+    useCallback(() => {
+      loadData();
+    }, [loadData])
+  );
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -67,8 +72,21 @@ export default function HistoryScreen() {
           />
         }
       >
-        <Text style={styles.pageTitle}>History & Stats</Text>
-        <Text style={styles.pageSubtitle}>Your focus and movement over the past 7 days</Text>
+        <View style={styles.headerRow}>
+          <View style={styles.headerTitleCol}>
+            <Text style={styles.pageTitle}>History & Stats</Text>
+            <Text style={styles.pageSubtitle}>Your focus and movement over the past 7 days</Text>
+          </View>
+          <Button
+            title={refreshing ? 'Refreshing...' : 'Refresh'}
+            variant="ghost"
+            size="small"
+            loading={refreshing}
+            onPress={onRefresh}
+            style={styles.refreshBtn}
+            accessibilityLabel="Refresh history"
+          />
+        </View>
 
         {/* 4 Stat Cards */}
         <View style={styles.statsGrid}>
@@ -141,6 +159,14 @@ export default function HistoryScreen() {
               <Text style={styles.emptySub}>
                 Start a session on the Timer tab to log your first Repomodore!
               </Text>
+              <Button
+                title="Start a Session"
+                variant="primary"
+                size="small"
+                onPress={() => router.push('/(tabs)')}
+                style={styles.startSessionBtn}
+                accessibilityLabel="Navigate to Timer tab"
+              />
             </View>
           ) : (
             <View style={styles.sessionList}>
@@ -209,17 +235,32 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     paddingBottom: Spacing.xxl,
   },
+  headerRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginTop: Spacing.xs,
+    marginBottom: Spacing.md,
+  },
+  headerTitleCol: {
+    flex: 1,
+    marginRight: Spacing.sm,
+  },
+  refreshBtn: {
+    minHeight: 36,
+  },
+  startSessionBtn: {
+    marginTop: Spacing.md,
+  },
   pageTitle: {
     fontSize: 26,
     fontWeight: '700',
     color: Colors.ink,
-    marginTop: Spacing.xs,
   },
   pageSubtitle: {
     fontSize: 14,
     color: Colors.muted,
     marginTop: 2,
-    marginBottom: Spacing.lg,
   },
   statsGrid: {
     flexDirection: 'row',
