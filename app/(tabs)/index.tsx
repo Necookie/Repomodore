@@ -9,6 +9,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '@clerk/clerk-expo';
+import { useFocusEffect } from 'expo-router';
 import { Colors, Spacing } from '@/src/constants/theme';
 import { Mascot } from '@/src/components/Mascot';
 import { FocusCompanion } from '@/src/components/FocusCompanion';
@@ -18,7 +19,13 @@ import { CircularProgressRing } from '@/src/components/CircularProgressRing';
 import { SegmentedControl } from '@/src/components/SegmentedControl';
 import { MovementBreakView } from '@/src/components/MovementBreakView';
 import { useTimer } from '@/src/hooks/useTimer';
-import { formatTime, TimerMode, CompletedActivityEvent } from '@/src/engine/timerEngine';
+import {
+  formatTime,
+  TimerMode,
+  CompletedActivityEvent,
+  TimerConfig,
+  DEFAULT_CONFIG,
+} from '@/src/engine/timerEngine';
 import { activityRepository } from '@/src/storage/ActivityRepository';
 import { ActivityRecord, DailyStats } from '@/src/storage/schema';
 
@@ -26,6 +33,7 @@ export default function TimerScreen() {
   const { userId } = useAuth();
   const currentUserId = userId ?? 'guest';
 
+  const [config, setConfig] = useState<TimerConfig>(DEFAULT_CONFIG);
   const [todayStats, setTodayStats] = useState<DailyStats>({
     dateKey: '',
     dayLabel: 'Today',
@@ -35,18 +43,30 @@ export default function TimerScreen() {
     skippedBreaks: 0,
   });
 
-  const loadTodayStats = useCallback(async () => {
+  const loadData = useCallback(async () => {
     try {
-      const stats = await activityRepository.getTodayStats(currentUserId);
+      const [stats, settings] = await Promise.all([
+        activityRepository.getTodayStats(currentUserId),
+        activityRepository.getSettings(currentUserId),
+      ]);
       setTodayStats(stats);
+      setConfig({
+        focusDurationSeconds: settings.focusDurationSeconds,
+        breakDurationSeconds: settings.breakDurationSeconds,
+        repGoal: settings.repGoal,
+        soundEnabled: settings.soundEnabled,
+        notificationsEnabled: settings.notificationsEnabled,
+      });
     } catch (err) {
-      console.warn('Error loading today stats:', err);
+      console.warn('Error loading today stats and settings:', err);
     }
   }, [currentUserId]);
 
-  useEffect(() => {
-    loadTodayStats();
-  }, [loadTodayStats]);
+  useFocusEffect(
+    useCallback(() => {
+      loadData();
+    }, [loadData])
+  );
 
   const handleActivityCompleted = useCallback(
     async (activity: CompletedActivityEvent) => {
@@ -68,12 +88,12 @@ export default function TimerScreen() {
           deletedAt: null,
         };
         await activityRepository.saveActivity(record);
-        await loadTodayStats();
+        await loadData();
       } catch (err) {
         console.warn('Error saving completed activity:', err);
       }
     },
-    [currentUserId, loadTodayStats]
+    [currentUserId, loadData]
   );
 
   const {
@@ -86,6 +106,7 @@ export default function TimerScreen() {
     recordBreakResponse,
     endBreakEarly,
   } = useTimer({
+    config,
     onActivityCompleted: handleActivityCompleted,
   });
 

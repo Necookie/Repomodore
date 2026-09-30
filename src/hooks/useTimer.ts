@@ -44,6 +44,21 @@ export function useTimer({
   const onPhaseCompletedRef = useRef(onPhaseCompleted);
   onPhaseCompletedRef.current = onPhaseCompleted;
 
+  useEffect(() => {
+    configRef.current = config;
+    setSnapshot((curr) => {
+      if (curr.state === 'idle_focus') {
+        return {
+          ...curr,
+          remainingSeconds: config.focusDurationSeconds,
+          totalSeconds: config.focusDurationSeconds,
+          repGoal: config.repGoal,
+        };
+      }
+      return curr;
+    });
+  }, [config.focusDurationSeconds, config.breakDurationSeconds, config.repGoal]);
+
   // Handle tick
   const handleTick = useCallback(() => {
     const current = snapshotRef.current;
