@@ -210,7 +210,8 @@ export function recordBreakResponse(
 
 export function endBreakEarly(
   current: TimerSnapshot,
-  now: number = Date.now()
+  now: number = Date.now(),
+  config?: TimerConfig
 ): { snapshot: TimerSnapshot; completedActivity: CompletedActivityEvent | null } {
   if (current.state !== 'running_break' && current.state !== 'paused_break') {
     return { snapshot: current, completedActivity: null };
@@ -219,6 +220,8 @@ export function endBreakEarly(
   const completedAt = new Date(now).toISOString();
   const outcome: BreakOutcome = current.breakOutcome === 'pending' ? 'skipped' : current.breakOutcome;
   const reportedReps = outcome === 'done' ? current.repGoal : 0;
+  const focusSeconds = config?.focusDurationSeconds ?? DEFAULT_CONFIG.focusDurationSeconds;
+  const breakSeconds = Math.max(0, current.totalSeconds - current.remainingSeconds);
 
   const activity: CompletedActivityEvent | null = current.activeRecordId
     ? {
@@ -226,8 +229,8 @@ export function endBreakEarly(
         mode: current.mode,
         startedAt: current.startedAt || completedAt,
         completedAt,
-        focusSeconds: current.totalSeconds, // focus was completed
-        breakSeconds: current.totalSeconds - current.remainingSeconds,
+        focusSeconds,
+        breakSeconds,
         movementLabel: current.movementLabel,
         repGoal: current.repGoal,
         reportedReps,

@@ -167,7 +167,8 @@ export function useTimer({
   const handleEndBreakEarly = useCallback(() => {
     const { snapshot: next, completedActivity } = endBreakEarly(
       snapshotRef.current,
-      Date.now()
+      Date.now(),
+      configRef.current
     );
     setSnapshot(next);
     if (completedActivity) {

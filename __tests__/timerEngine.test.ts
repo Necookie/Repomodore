@@ -127,6 +127,18 @@ describe('Timer Engine', () => {
     expect(result.completedActivity?.reportedReps).toBe(0);
   });
 
+  it('ends break early preserving actual focus duration and accurate break seconds', () => {
+    const initial = createInitialSnapshot('study_squats', testConfig);
+    const started = startFocus(initial, testConfig, baseTime);
+    const inBreak = tickTimer(started, testConfig, baseTime + 10000).snapshot;
+    // Set 2 seconds elapsed into break (break was 5s, remaining 3s)
+    const midBreak = { ...inBreak, remainingSeconds: 3 };
+    const { snapshot, completedActivity } = endBreakEarly(midBreak, baseTime + 12000, testConfig);
+    expect(snapshot.state).toBe('ready_focus');
+    expect(completedActivity?.focusSeconds).toBe(testConfig.focusDurationSeconds);
+    expect(completedActivity?.breakSeconds).toBe(2);
+  });
+
   it('restores remaining time accurately after backgrounding/sleep', () => {
     const initial = createInitialSnapshot('study', testConfig);
     const started = startFocus(initial, testConfig, baseTime);
