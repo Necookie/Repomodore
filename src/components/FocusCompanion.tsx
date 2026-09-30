@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View, Platform } from 'react-native';
 import { Card } from './Card';
 import { Mascot } from './Mascot';
 import { Colors } from '../constants/theme';
@@ -18,7 +18,16 @@ export function FocusCompanion({ playing, repGoal, reducedMotion }: { playing: b
           <Mascot pose="focus" size={78} motion={quiet ? 'none' : 'calm'} playing={playing} reducedMotion={reducedMotion} />
         </View>
       </View>
-      <Pressable accessibilityRole="switch" accessibilityState={{ checked: quiet }} accessibilityLabel="Keep focus mascot still" onPress={() => setQuiet(value => !value)} style={styles.toggle}>
+      <Pressable
+        accessibilityRole="switch"
+        accessibilityState={{ checked: quiet }}
+        accessibilityLabel="Keep focus mascot still"
+        onPress={() => setQuiet(value => !value)}
+        style={[
+          styles.toggle,
+          Platform.OS === 'web' ? ({ cursor: 'pointer', userSelect: 'none' } as any) : null,
+        ]}
+      >
         <View style={[styles.indicator, quiet && styles.indicatorOn]} />
         <Text style={styles.toggleText}>{quiet ? 'Still mascot' : 'Gentle mascot motion'}</Text>
       </Pressable>

@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, Pressable, StyleSheet, ViewStyle } from 'react-native';
+import { View, Text, Pressable, StyleSheet, ViewStyle, Platform } from 'react-native';
 import { Colors, Radius, Spacing } from '@/src/constants/theme';
 
 interface SegmentOption<T extends string> {
@@ -37,6 +37,9 @@ export function SegmentedControl<T extends string>({
               styles.segment,
               isSelected && styles.segmentSelected,
               pressed && styles.segmentPressed,
+              Platform.OS === 'web'
+                ? ({ cursor: 'pointer', userSelect: 'none' } as any)
+                : null,
             ]}
           >
             <View style={styles.segmentContent}>
