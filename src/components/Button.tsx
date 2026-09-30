@@ -49,7 +49,13 @@ export const Button: React.FC<ButtonProps> = ({
       size === 'large' && styles.largeContainer,
       pressed && !disabled && styles[`${variant}Pressed` as keyof typeof styles],
       disabled && styles.disabled,
-      Platform.OS === 'web' ? ({ outlineStyle: 'none' } as any) : null,
+      Platform.OS === 'web'
+        ? ({
+            outlineStyle: 'none',
+            cursor: disabled || loading ? 'not-allowed' : 'pointer',
+            userSelect: 'none',
+          } as any)
+        : null,
       style,
     ];
   };
