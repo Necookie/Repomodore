@@ -74,6 +74,12 @@ export default function SettingsScreen() {
       }
     } else {
       setSyncStatus('Sync needs retry');
+      const err = res.error || 'Failed to sync with remote server.';
+      if (Platform.OS === 'web') {
+        alert(`Sync failed: ${err}`);
+      } else {
+        Alert.alert('Sync Failed', err);
+      }
     }
   };
 
@@ -142,8 +148,14 @@ export default function SettingsScreen() {
           message: json,
         });
       }
-    } catch (err) {
+    } catch (err: any) {
       console.warn('Export error:', err);
+      const msg = err?.message || 'Could not export data.';
+      if (Platform.OS === 'web') {
+        alert(`Export failed: ${msg}`);
+      } else {
+        Alert.alert('Export Failed', msg);
+      }
     }
   };
 
@@ -152,8 +164,14 @@ export default function SettingsScreen() {
       'Clear all local activity data for this account on this device?\nThis action cannot be undone.';
     if (Platform.OS === 'web') {
       if (window.confirm(msg)) {
-        activityRepository.clearLocalData(currentUserId);
-        alert('Local data cleared successfully.');
+        activityRepository
+          .clearLocalData(currentUserId)
+          .then(() => {
+            alert('Local data cleared successfully.');
+          })
+          .catch((err: any) => {
+            alert(`Failed to clear local data: ${err?.message || err}`);
+          });
       }
     } else {
       Alert.alert('Clear Local Data', msg, [
@@ -162,8 +180,12 @@ export default function SettingsScreen() {
           text: 'Clear All',
           style: 'destructive',
           onPress: async () => {
-            await activityRepository.clearLocalData(currentUserId);
-            Alert.alert('Success', 'Local data cleared successfully.');
+            try {
+              await activityRepository.clearLocalData(currentUserId);
+              Alert.alert('Success', 'Local data cleared successfully.');
+            } catch (err: any) {
+              Alert.alert('Error', err?.message || 'Failed to clear local data.');
+            }
           },
         },
       ]);
@@ -232,8 +254,10 @@ export default function SettingsScreen() {
                 title="-5"
                 size="small"
                 variant="secondary"
+                disabled={Math.round(settings.focusDurationSeconds / 60) <= 1}
                 onPress={() => handleFocusChange(-5)}
                 style={styles.stepperBtn}
+                accessibilityLabel="Decrease focus duration by 5 minutes"
               />
               <Text style={styles.stepperValue}>
                 {Math.round(settings.focusDurationSeconds / 60)}m
@@ -242,8 +266,10 @@ export default function SettingsScreen() {
                 title="+5"
                 size="small"
                 variant="secondary"
+                disabled={Math.round(settings.focusDurationSeconds / 60) >= 180}
                 onPress={() => handleFocusChange(5)}
                 style={styles.stepperBtn}
+                accessibilityLabel="Increase focus duration by 5 minutes"
               />
             </View>
           </View>
@@ -261,8 +287,10 @@ export default function SettingsScreen() {
                 title="-1"
                 size="small"
                 variant="secondary"
+                disabled={Math.round(settings.breakDurationSeconds / 60) <= 1}
                 onPress={() => handleBreakChange(-1)}
                 style={styles.stepperBtn}
+                accessibilityLabel="Decrease break duration by 1 minute"
               />
               <Text style={styles.stepperValue}>
                 {Math.round(settings.breakDurationSeconds / 60)}m
@@ -271,8 +299,10 @@ export default function SettingsScreen() {
                 title="+1"
                 size="small"
                 variant="secondary"
+                disabled={Math.round(settings.breakDurationSeconds / 60) >= 60}
                 onPress={() => handleBreakChange(1)}
                 style={styles.stepperBtn}
+                accessibilityLabel="Increase break duration by 1 minute"
               />
             </View>
           </View>
@@ -290,16 +320,20 @@ export default function SettingsScreen() {
                 title="-5"
                 size="small"
                 variant="secondary"
+                disabled={settings.repGoal <= 1}
                 onPress={() => handleRepChange(-5)}
                 style={styles.stepperBtn}
+                accessibilityLabel="Decrease squat goal by 5 reps"
               />
               <Text style={styles.stepperValue}>{settings.repGoal}</Text>
               <Button
                 title="+5"
                 size="small"
                 variant="secondary"
+                disabled={settings.repGoal >= 100}
                 onPress={() => handleRepChange(5)}
                 style={styles.stepperBtn}
+                accessibilityLabel="Increase squat goal by 5 reps"
               />
             </View>
           </View>
