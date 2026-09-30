@@ -161,16 +161,25 @@ export default function TimerScreen() {
             ]}
             value={snapshot.mode}
             onChange={(mode) => {
+              if (mode === snapshot.mode) return;
               if (isRunning || isPaused) {
-                if (
-                  Platform.OS === 'web'
-                    ? window.confirm('Changing mode will reset the active timer. Proceed?')
-                    : true
-                ) {
-                  setMode(mode);
+                const message = 'Changing mode will reset the active timer. Proceed?';
+                if (Platform.OS === 'web') {
+                  if (window.confirm(message)) {
+                    setMode(mode, true);
+                  }
+                } else {
+                  Alert.alert('Change Mode', message, [
+                    { text: 'Cancel', style: 'cancel' },
+                    {
+                      text: 'Change Mode',
+                      style: 'destructive',
+                      onPress: () => setMode(mode, true),
+                    },
+                  ]);
                 }
               } else {
-                setMode(mode);
+                setMode(mode, true);
               }
             }}
           />

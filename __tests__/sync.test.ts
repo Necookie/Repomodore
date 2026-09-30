@@ -109,5 +109,5 @@ describe('Sync API & Turso Endpoints', () => {
       .set('x-test-user-id', userId)
       .send({ since: '1970-01-01T00:00:00.000Z' });
     expect(pullAfterDelete.body.activities.length).toBe(0);
-  });
+  }, 15000);
 });

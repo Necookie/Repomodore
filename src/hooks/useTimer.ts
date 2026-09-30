@@ -148,10 +148,10 @@ export function useTimer({
     setSnapshot((curr) => resetTimer(curr, configRef.current));
   }, []);
 
-  const handleModeChange = useCallback((newMode: TimerMode) => {
+  const handleModeChange = useCallback((newMode: TimerMode, forceReset?: boolean) => {
     setSnapshot((curr) => {
-      if (curr.state !== 'idle_focus' && curr.state !== 'ready_focus') {
-        return curr; // don't change mode while running without reset
+      if (curr.state !== 'idle_focus' && curr.state !== 'ready_focus' && !forceReset) {
+        return curr; // don't change mode while running without explicit reset
       }
       return createInitialSnapshot(newMode, configRef.current);
     });
