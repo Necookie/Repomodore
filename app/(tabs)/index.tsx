@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -26,6 +26,7 @@ import {
   TimerConfig,
   DEFAULT_CONFIG,
 } from '@/src/engine/timerEngine';
+import { playAlarm, stopAlarm, RingtoneId } from '@/src/services/audioService';
 import { activityRepository } from '@/src/storage/ActivityRepository';
 import { ActivityRecord, DailyStats } from '@/src/storage/schema';
 
@@ -56,11 +57,35 @@ export default function TimerScreen() {
         repGoal: settings.repGoal,
         soundEnabled: settings.soundEnabled,
         notificationsEnabled: settings.notificationsEnabled,
+        ringtone: settings.ringtone,
+        alarmVolume: settings.alarmVolume,
       });
     } catch (err) {
       console.warn('Error loading today stats and settings:', err);
     }
   }, [currentUserId]);
+
+  const [alarmActive, setAlarmActive] = useState(false);
+  const [celebrating, setCelebrating] = useState(false);
+
+  const handlePhaseCompleted = useCallback(
+    (_phase: 'focus' | 'break') => {
+      if (config.soundEnabled) {
+        playAlarm((config.ringtone as RingtoneId) || 'gentle_chime', config.alarmVolume ?? 0.8);
+        setAlarmActive(true);
+      }
+      setCelebrating(true);
+      setTimeout(() => {
+        setCelebrating(false);
+      }, 3500);
+    },
+    [config.soundEnabled, config.ringtone, config.alarmVolume]
+  );
+
+  const handleSilenceAlarm = useCallback(() => {
+    stopAlarm();
+    setAlarmActive(false);
+  }, []);
 
   useFocusEffect(
     useCallback(() => {
@@ -108,7 +133,23 @@ export default function TimerScreen() {
   } = useTimer({
     config,
     onActivityCompleted: handleActivityCompleted,
+    onPhaseCompleted: handlePhaseCompleted,
   });
+
+  const handleStartWithStopAlarm = () => {
+    handleSilenceAlarm();
+    start();
+  };
+
+  const handlePauseWithStopAlarm = () => {
+    handleSilenceAlarm();
+    pause();
+  };
+
+  const handleResumeWithStopAlarm = () => {
+    handleSilenceAlarm();
+    resume();
+  };
 
   const isBreakPhase =
     snapshot.state === 'running_break' || snapshot.state === 'paused_break';
@@ -119,6 +160,7 @@ export default function TimerScreen() {
       : 0;
 
   const handleResetPress = () => {
+    handleSilenceAlarm();
     if (snapshot.state === 'idle_focus') return;
 
     const message =
@@ -144,10 +186,22 @@ export default function TimerScreen() {
       <SafeAreaView style={styles.safeArea}>
         <MovementBreakView
           snapshot={snapshot}
-          onRecordResponse={recordBreakResponse}
-          onEndBreakEarly={endBreakEarly}
-          onPause={pause}
-          onResume={resume}
+          onRecordResponse={(action) => {
+            handleSilenceAlarm();
+            recordBreakResponse(action);
+          }}
+          onEndBreakEarly={() => {
+            handleSilenceAlarm();
+            endBreakEarly();
+          }}
+          onPause={() => {
+            handleSilenceAlarm();
+            pause();
+          }}
+          onResume={() => {
+            handleSilenceAlarm();
+            resume();
+          }}
         />
       </SafeAreaView>
     );
@@ -183,6 +237,7 @@ export default function TimerScreen() {
             value={snapshot.mode}
             onChange={(mode) => {
               if (mode === snapshot.mode) return;
+              handleSilenceAlarm();
               if (isRunning || isPaused) {
                 const message = 'Changing mode will reset the active timer. Proceed?';
                 if (Platform.OS === 'web') {
@@ -205,6 +260,26 @@ export default function TimerScreen() {
             }}
           />
         </View>
+
+        {/* Ringing Alarm Alert Banner */}
+        {alarmActive && (
+          <View style={styles.alarmBanner}>
+            <View style={styles.alarmBannerInfo}>
+              <Text style={styles.alarmBell}>🔔</Text>
+              <View>
+                <Text style={styles.alarmTitle}>Timer Finished!</Text>
+                <Text style={styles.alarmSub}>Alarm is ringing · Tap to silence</Text>
+              </View>
+            </View>
+            <Button
+              title="Silence"
+              size="small"
+              variant="secondary"
+              onPress={handleSilenceAlarm}
+              style={styles.silenceBtn}
+            />
+          </View>
+        )}
 
         {/* Circular Timer Ring */}
         <View style={styles.timerRingSection}>
@@ -248,7 +323,7 @@ export default function TimerScreen() {
               title="Pause"
               size="large"
               variant="primary"
-              onPress={pause}
+              onPress={handlePauseWithStopAlarm}
               style={styles.mainActionBtn}
               accessibilityLabel="Pause focus timer"
             />
@@ -257,7 +332,7 @@ export default function TimerScreen() {
               title="Resume"
               size="large"
               variant="primary"
-              onPress={resume}
+              onPress={handleResumeWithStopAlarm}
               style={styles.mainActionBtn}
               accessibilityLabel="Resume focus timer"
             />
@@ -266,7 +341,7 @@ export default function TimerScreen() {
               title={isReady ? 'Start Next Focus' : 'Start'}
               size="large"
               variant="primary"
-              onPress={start}
+              onPress={handleStartWithStopAlarm}
               style={styles.mainActionBtn}
               accessibilityLabel="Start focus timer"
             />
@@ -282,7 +357,12 @@ export default function TimerScreen() {
           />
         </View>
 
-        <FocusCompanion playing={isRunning} repGoal={snapshot.mode === 'study_squats' ? snapshot.repGoal : undefined} />
+        <FocusCompanion
+          playing={isRunning}
+          repGoal={snapshot.mode === 'study_squats' ? snapshot.repGoal : undefined}
+          state={snapshot.state}
+          celebrating={celebrating}
+        />
         {/* Daily Summary Card */}
         <Card style={styles.todayCard}>
           <Text style={styles.todayTitle}>Today</Text>
@@ -425,5 +505,40 @@ const styles = StyleSheet.create({
     width: 1,
     height: 28,
     backgroundColor: Colors.border,
+  },
+  alarmBanner: {
+    width: '100%',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: Colors.accentSoft,
+    borderColor: Colors.accent,
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: 10,
+    marginBottom: Spacing.sm,
+  },
+  alarmBannerInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    gap: 10,
+  },
+  alarmBell: {
+    fontSize: 22,
+  },
+  alarmTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: Colors.accent,
+  },
+  alarmSub: {
+    fontSize: 11,
+    color: Colors.ink,
+  },
+  silenceBtn: {
+    minHeight: 36,
+    paddingHorizontal: 12,
   },
 });

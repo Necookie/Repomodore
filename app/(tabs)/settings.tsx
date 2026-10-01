@@ -8,17 +8,30 @@ import {
   Alert,
   Platform,
   Share,
+  Pressable,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { router } from 'expo-router';
 import { useAuth } from '@clerk/clerk-expo';
 import { Colors, Radius, Spacing } from '@/src/constants/theme';
 import { Card } from '@/src/components/Card';
 import { Button } from '@/src/components/Button';
+import { Mascot } from '@/src/components/Mascot';
 import { AccountControl } from '@/src/components/AccountControl';
 import { activityRepository } from '@/src/storage/ActivityRepository';
 import { UserSettings, DEFAULT_USER_SETTINGS } from '@/src/storage/schema';
-
 import { syncNow, deleteRemoteData } from '@/src/services/syncService';
+import {
+  RingtoneId,
+  RINGTONE_OPTIONS,
+  previewRingtone,
+  stopAlarm,
+} from '@/src/services/audioService';
+import {
+  checkForAppUpdate,
+  fetchAndApplyUpdate,
+  getAppUpdateInfo,
+} from '@/src/services/updateService';
 
 export default function SettingsScreen() {
   const { userId, getToken } = useAuth();
@@ -29,6 +42,45 @@ export default function SettingsScreen() {
   );
   const [syncStatus, setSyncStatus] = useState<string>('Saved on this device');
   const [syncing, setSyncing] = useState<boolean>(false);
+
+  const [previewingRingtone, setPreviewingRingtone] = useState<string | null>(null);
+
+  const [updateInfo] = useState(() => getAppUpdateInfo());
+  const [checkingUpdate, setCheckingUpdate] = useState(false);
+  const [updateAvailable, setUpdateAvailable] = useState(false);
+  const [updatingApp, setUpdatingApp] = useState(false);
+  const [updateMessage, setUpdateMessage] = useState<string | null>(null);
+
+  const handleTestRingtone = async (ringtoneId: RingtoneId) => {
+    if (previewingRingtone === ringtoneId) {
+      await stopAlarm();
+      setPreviewingRingtone(null);
+    } else {
+      setPreviewingRingtone(ringtoneId);
+      await previewRingtone(ringtoneId, settings.alarmVolume ?? 0.8);
+      setTimeout(() => {
+        setPreviewingRingtone((curr) => (curr === ringtoneId ? null : curr));
+      }, 2500);
+    }
+  };
+
+  const handleCheckUpdate = async () => {
+    setCheckingUpdate(true);
+    setUpdateMessage(null);
+    const result = await checkForAppUpdate();
+    setCheckingUpdate(false);
+    setUpdateAvailable(result.isAvailable);
+    setUpdateMessage(result.message);
+  };
+
+  const handleApplyUpdate = async () => {
+    setUpdatingApp(true);
+    const result = await fetchAndApplyUpdate();
+    setUpdatingApp(false);
+    if (!result.success && result.error) {
+      setUpdateMessage(`Update failed: ${result.error}`);
+    }
+  };
 
   const loadSettings = useCallback(async () => {
     try {
@@ -345,7 +397,7 @@ export default function SettingsScreen() {
           <View style={styles.switchRow}>
             <View style={styles.settingLabelCol}>
               <Text style={styles.settingLabel}>Sound Effects</Text>
-              <Text style={styles.settingHint}>Gentle chime when phases end</Text>
+              <Text style={styles.settingHint}>Play audible alarm when timer phase ends</Text>
             </View>
             <Switch
               value={settings.soundEnabled}
@@ -353,6 +405,88 @@ export default function SettingsScreen() {
               trackColor={{ false: '#DDD', true: Colors.accent }}
             />
           </View>
+
+          {settings.soundEnabled && (
+            <>
+              <View style={styles.divider} />
+
+              <Text style={styles.subheading}>Timer Alarm Ringtone</Text>
+              <Text style={styles.subheadingHint}>
+                Choose the ringtone to play when your study session or break completes:
+              </Text>
+
+              <View style={styles.ringtoneList}>
+                {RINGTONE_OPTIONS.map((opt) => {
+                  const isSelected = (settings.ringtone || 'gentle_chime') === opt.id;
+                  const isPlayingThis = previewingRingtone === opt.id;
+                  return (
+                    <Pressable
+                      key={opt.id}
+                      style={[
+                        styles.ringtoneItem,
+                        isSelected && styles.ringtoneItemSelected,
+                        Platform.OS === 'web' ? ({ cursor: 'pointer' } as any) : null,
+                      ]}
+                      onPress={() => updateSetting('ringtone', opt.id)}
+                      accessibilityRole="radio"
+                      accessibilityState={{ checked: isSelected }}
+                      accessibilityLabel={`${opt.label}, ${opt.description}`}
+                    >
+                      <View style={styles.radioDotContainer}>
+                        <View style={[styles.radioOuter, isSelected && styles.radioOuterSelected]}>
+                          {isSelected && <View style={styles.radioInner} />}
+                        </View>
+                      </View>
+                      <View style={styles.ringtoneTextCol}>
+                        <Text style={[styles.ringtoneLabel, isSelected && styles.ringtoneLabelSelected]}>
+                          {opt.label}
+                        </Text>
+                        <Text style={styles.ringtoneDescription}>{opt.description}</Text>
+                      </View>
+                      <Button
+                        title={isPlayingThis ? '■ Stop' : '▶ Test'}
+                        size="small"
+                        variant={isPlayingThis ? 'primary' : 'secondary'}
+                        onPress={() => handleTestRingtone(opt.id)}
+                        style={styles.previewBtn}
+                        accessibilityLabel={`Preview ${opt.label} ringtone`}
+                      />
+                    </Pressable>
+                  );
+                })}
+              </View>
+
+              <View style={styles.divider} />
+
+              {/* Volume Selection */}
+              <View style={styles.settingRow}>
+                <View style={styles.settingLabelCol}>
+                  <Text style={styles.settingLabel}>Alarm Volume</Text>
+                  <Text style={styles.settingHint}>Sound output level</Text>
+                </View>
+                <View style={styles.volumeButtons}>
+                  {[
+                    { label: '30%', val: 0.3 },
+                    { label: '70%', val: 0.7 },
+                    { label: '100%', val: 1.0 },
+                  ].map((lvl) => {
+                    const isSelected =
+                      Math.abs((settings.alarmVolume ?? 0.8) - lvl.val) < 0.18;
+                    return (
+                      <Button
+                        key={lvl.label}
+                        title={lvl.label}
+                        size="small"
+                        variant={isSelected ? 'primary' : 'secondary'}
+                        onPress={() => updateSetting('alarmVolume', lvl.val)}
+                        style={styles.volumeBtn}
+                      />
+                    );
+                  })}
+                </View>
+              </View>
+            </>
+          )}
 
           <View style={styles.divider} />
 
@@ -369,6 +503,81 @@ export default function SettingsScreen() {
               trackColor={{ false: '#DDD', true: Colors.accent }}
             />
           </View>
+        </Card>
+
+        {/* Section: Mascot & Motion */}
+        <Text style={styles.sectionHeader}>Mascot & Motion</Text>
+        <Card style={styles.card}>
+          <View style={styles.mascotPreviewRow}>
+            <Mascot pose="welcome" size={64} motion="calm" />
+            <View style={styles.mascotPreviewText}>
+              <Text style={styles.settingLabel}>Interactive Mascot Studio</Text>
+              <Text style={styles.settingHint}>
+                Preview articulated squat demonstrations, focus companion motions, and animation states.
+              </Text>
+            </View>
+          </View>
+          <View style={styles.btnRow}>
+            <Button
+              title="Open Mascot Studio"
+              variant="secondary"
+              onPress={() => router.push('/mascot-preview')}
+              style={styles.actionBtn}
+            />
+          </View>
+        </Card>
+
+        {/* Section: Mobile App & Updates */}
+        <Text style={styles.sectionHeader}>Mobile App & Updates</Text>
+        <Card style={styles.card}>
+          <View style={styles.updateStatusRow}>
+            <View style={styles.settingLabelCol}>
+              <Text style={styles.settingLabel}>Installed App Version</Text>
+              <Text style={styles.settingHint}>
+                v{updateInfo.runtimeVersion} · Channel: {updateInfo.channel || 'production'}
+              </Text>
+            </View>
+            <View style={styles.updateBadge}>
+              <Text style={styles.updateBadgeText}>
+                {updateInfo.isEnabled
+                  ? 'OTA Active'
+                  : Platform.OS === 'web'
+                  ? 'Web'
+                  : 'Standalone'}
+              </Text>
+            </View>
+          </View>
+
+          {updateMessage ? (
+            <View style={[styles.updateAlertBox, updateAvailable && styles.updateAlertSuccess]}>
+              <Text style={[styles.updateAlertText, updateAvailable && styles.updateAlertTextSuccess]}>
+                {updateMessage}
+              </Text>
+            </View>
+          ) : null}
+
+          <View style={styles.btnRow}>
+            {updateAvailable ? (
+              <Button
+                title="Restart & Apply Update Now"
+                variant="primary"
+                loading={updatingApp}
+                onPress={handleApplyUpdate}
+                style={styles.actionBtn}
+              />
+            ) : (
+              <Button
+                title="Check for Mobile Updates"
+                variant="secondary"
+                loading={checkingUpdate}
+                onPress={handleCheckUpdate}
+                style={styles.actionBtn}
+              />
+            )}
+          </View>
+          <Text style={styles.updateNoteText}>
+            Over-the-air updates deliver fixes and improvements directly to your phone without reinstalling the APK.
+          </Text>
         </Card>
 
         {/* Section: Data & Storage */}
@@ -558,5 +767,134 @@ const styles = StyleSheet.create({
   },
   actionBtn: {
     width: '100%',
+  },
+  subheading: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: Colors.ink,
+    marginTop: 2,
+    marginBottom: 2,
+  },
+  subheadingHint: {
+    fontSize: 12,
+    color: Colors.muted,
+    marginBottom: Spacing.sm,
+  },
+  ringtoneList: {
+    gap: 8,
+    marginVertical: 4,
+  },
+  ringtoneItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 10,
+    borderRadius: Radius.md,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    backgroundColor: Colors.canvas,
+  },
+  ringtoneItemSelected: {
+    borderColor: Colors.accent,
+    backgroundColor: Colors.accentSoft,
+  },
+  radioDotContainer: {
+    marginRight: 10,
+  },
+  radioOuter: {
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    borderWidth: 2,
+    borderColor: Colors.muted,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  radioOuterSelected: {
+    borderColor: Colors.accent,
+  },
+  radioInner: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: Colors.accent,
+  },
+  ringtoneTextCol: {
+    flex: 1,
+    marginRight: 8,
+  },
+  ringtoneLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: Colors.ink,
+  },
+  ringtoneLabelSelected: {
+    color: Colors.accent,
+    fontWeight: '700',
+  },
+  ringtoneDescription: {
+    fontSize: 11,
+    color: Colors.muted,
+    marginTop: 1,
+  },
+  previewBtn: {
+    minHeight: 32,
+    paddingHorizontal: 10,
+  },
+  volumeButtons: {
+    flexDirection: 'row',
+    gap: 6,
+  },
+  volumeBtn: {
+    minHeight: 34,
+    paddingHorizontal: 12,
+  },
+  mascotPreviewRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    marginBottom: Spacing.md,
+  },
+  mascotPreviewText: {
+    flex: 1,
+  },
+  updateStatusRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: Spacing.xs,
+  },
+  updateBadge: {
+    backgroundColor: Colors.accentSoft,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: Radius.sm,
+  },
+  updateBadgeText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: Colors.accent,
+  },
+  updateAlertBox: {
+    backgroundColor: '#F3F4F6',
+    borderRadius: Radius.sm,
+    padding: 10,
+    marginTop: Spacing.sm,
+  },
+  updateAlertSuccess: {
+    backgroundColor: '#DEF7EC',
+  },
+  updateAlertText: {
+    fontSize: 12,
+    color: Colors.ink,
+  },
+  updateAlertTextSuccess: {
+    color: '#03543F',
+    fontWeight: '600',
+  },
+  updateNoteText: {
+    fontSize: 11,
+    color: Colors.muted,
+    marginTop: Spacing.sm,
+    lineHeight: 16,
   },
 });
