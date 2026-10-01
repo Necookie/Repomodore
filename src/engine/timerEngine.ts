@@ -18,6 +18,8 @@ export interface TimerConfig {
   repGoal: number; // 1 to 100 (default 10)
   soundEnabled: boolean;
   notificationsEnabled: boolean;
+  ringtone?: string;
+  alarmVolume?: number;
 }
 
 export const DEFAULT_CONFIG: TimerConfig = {
@@ -26,6 +28,8 @@ export const DEFAULT_CONFIG: TimerConfig = {
   repGoal: 10,
   soundEnabled: true,
   notificationsEnabled: false,
+  ringtone: 'gentle_chime',
+  alarmVolume: 0.8,
 };
 
 export interface CompletedActivityEvent {

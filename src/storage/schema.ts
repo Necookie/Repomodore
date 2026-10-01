@@ -25,6 +25,8 @@ export interface UserSettings {
   soundEnabled: boolean;
   notificationsEnabled: boolean;
   syncEnabled: boolean;
+  ringtone: string; // 'gentle_chime' | 'digital_alarm' | 'marimba' | 'clock_beep' | 'zen_gong'
+  alarmVolume: number; // 0.1 to 1.0 (default 0.8)
   updatedAt: string;
 }
 
@@ -45,6 +47,8 @@ export const DEFAULT_USER_SETTINGS = (userId: string): UserSettings => ({
   soundEnabled: true,
   notificationsEnabled: false,
   syncEnabled: false,
+  ringtone: 'gentle_chime',
+  alarmVolume: 0.8,
   updatedAt: new Date().toISOString(),
 });
 

@@ -206,14 +206,14 @@ class WebAndMemoryRepository implements IActivityRepository {
     if (this.isIndexedDBAvailable) {
       try {
         const saved = await this.getOneFromStore<UserSettings>('settings', userId);
-        if (saved) return saved;
+        if (saved) return { ...DEFAULT_USER_SETTINGS(userId), ...saved };
       } catch (err) {
         console.warn('IndexedDB getSettings error:', err);
       }
     }
 
     const saved = this.settings.get(userId);
-    if (saved) return saved;
+    if (saved) return { ...DEFAULT_USER_SETTINGS(userId), ...saved };
 
     const defaultSettings = DEFAULT_USER_SETTINGS(userId);
     this.settings.set(userId, defaultSettings);
