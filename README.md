@@ -11,6 +11,9 @@ Repomodore is a mobile-first, cross-platform productivity timer that alternates 
 - **Dual Modes**:
   - **Study**: Pure focus timer (customizable 1–180 min, default 45 min) with zero distraction.
   - **Study + Squats**: 45-minute focus session followed immediately by a 5-minute movement break with a 10-squat goal. The 5 minutes serve as the full rest period.
+- **Customizable Timer Alarm Ringtones**: Choose from 5 distinct alarm sounds (Gentle Chime, Digital Alarm, Energetic Marimba, Classic Clock Beep, Zen Singing Bowl) with volume customization, test preview, and tactile haptic vibration feedback.
+- **Integrated Animated Mascot**: Articulated SVG squat demonstrations, gentle breathing companion during focus, celebration sparkles upon milestone completion, and an interactive Mascot Studio.
+- **Easy Mobile Updates (OTA & APK)**: Seamless in-app 1-tap Over-The-Air updates via `expo-updates`, automated Android APK builds via GitHub Actions, and cloud delivery via EAS. See [Mobile Updates Guide](docs/mobile-updates.md).
 - **Accurate Wall-Clock Timing**: Timing is anchored to absolute timestamps—backgrounding the app, sleeping the device, or refreshing never loses track of elapsed time or fabricates phantom cycles.
 - **Privacy-First Authentication**: Powered by Clerk. Unauthenticated visitors are greeted by a clean welcome screen. Signed-in users default to 100% local-only storage.
 - **Optional Turso Cloud Sync**: Transparent, opt-in cross-device synchronization with Turso libSQL. Users review exactly what is synced before enabling.
