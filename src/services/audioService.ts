@@ -46,6 +46,7 @@ let activeAudioContext: any = null;
 let activeNativeSound: any = null;
 let isCurrentlyPlaying = false;
 let stopTimeoutHandle: any = null;
+let alarmLoopInterval: any = null;
 
 function getWebAudioContext(): any {
   if (Platform.OS !== 'web' || typeof window === 'undefined') {
@@ -249,6 +250,10 @@ export async function stopAlarm(): Promise<void> {
     clearTimeout(stopTimeoutHandle);
     stopTimeoutHandle = null;
   }
+  if (alarmLoopInterval) {
+    clearInterval(alarmLoopInterval);
+    alarmLoopInterval = null;
+  }
   isCurrentlyPlaying = false;
 
   if (activeNativeSound) {
@@ -361,103 +366,129 @@ export async function playAlarm(
   await stopAlarm();
   isCurrentlyPlaying = true;
 
-  try {
-    // Rich tactile vibration cue
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+  const notesMap: Record<RingtoneId, { freq: number; duration: number }[]> = {
+    gentle_chime: [
+      { freq: 523.25, duration: 0.15 },
+      { freq: 659.25, duration: 0.15 },
+      { freq: 783.99, duration: 0.2 },
+      { freq: 1046.5, duration: 0.5 },
+      { freq: 0, duration: 0.2 },
+      { freq: 523.25, duration: 0.15 },
+      { freq: 659.25, duration: 0.15 },
+      { freq: 783.99, duration: 0.2 },
+      { freq: 1046.5, duration: 0.8 },
+    ],
+    digital_alarm: [
+      { freq: 880, duration: 0.14 },
+      { freq: 0, duration: 0.06 },
+      { freq: 1760, duration: 0.14 },
+      { freq: 0, duration: 0.06 },
+      { freq: 880, duration: 0.14 },
+      { freq: 0, duration: 0.2 },
+      { freq: 880, duration: 0.14 },
+      { freq: 0, duration: 0.06 },
+      { freq: 1760, duration: 0.14 },
+      { freq: 0, duration: 0.06 },
+      { freq: 880, duration: 0.14 },
+    ],
+    marimba: [
+      { freq: 523.25, duration: 0.12 },
+      { freq: 659.25, duration: 0.12 },
+      { freq: 783.99, duration: 0.12 },
+      { freq: 1046.5, duration: 0.2 },
+      { freq: 783.99, duration: 0.12 },
+      { freq: 1046.5, duration: 0.4 },
+      { freq: 0, duration: 0.15 },
+      { freq: 523.25, duration: 0.12 },
+      { freq: 659.25, duration: 0.12 },
+      { freq: 783.99, duration: 0.12 },
+      { freq: 1046.5, duration: 0.5 },
+    ],
+    clock_beep: [
+      { freq: 1046.5, duration: 0.08 },
+      { freq: 0, duration: 0.05 },
+      { freq: 1046.5, duration: 0.08 },
+      { freq: 0, duration: 0.3 },
+      { freq: 1046.5, duration: 0.08 },
+      { freq: 0, duration: 0.05 },
+      { freq: 1046.5, duration: 0.08 },
+      { freq: 0, duration: 0.3 },
+      { freq: 1046.5, duration: 0.08 },
+      { freq: 0, duration: 0.05 },
+      { freq: 1046.5, duration: 0.08 },
+    ],
+    zen_gong: [
+      { freq: 216, duration: 1.2 },
+      { freq: 432, duration: 1.0 },
+      { freq: 216, duration: 1.5 },
+    ],
+  };
 
-    if (Platform.OS === 'web') {
-      const ctx = getWebAudioContext();
-      if (ctx) {
-        synthesizeWebTone(ctx, ringtoneId, volume, true);
+  const playPulse = async () => {
+    if (!isCurrentlyPlaying) return;
+    try {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+
+      if (Platform.OS === 'web') {
+        const ctx = getWebAudioContext();
+        if (ctx) {
+          synthesizeWebTone(ctx, ringtoneId, volume, true);
+        }
+      } else {
+        try {
+          const { Audio } = require('expo-av');
+          await Audio.setAudioModeAsync({
+            playsInSilentModeIOS: true,
+            staysActiveInBackground: true,
+            shouldDuckAndroid: true,
+          });
+
+          const notes = notesMap[ringtoneId] || notesMap.gentle_chime;
+          const totalSec = notes.reduce((acc, n) => acc + n.duration, 0) + 0.3;
+          const wavUri = generateWavDataUri(notes, totalSec);
+
+          if (activeNativeSound) {
+            try {
+              await activeNativeSound.stopAsync();
+              await activeNativeSound.unloadAsync();
+            } catch {
+              // ignore
+            }
+          }
+
+          const { sound } = await Audio.Sound.createAsync(
+            { uri: wavUri },
+            { shouldPlay: true, volume: Math.max(0.1, Math.min(1, volume)) }
+          );
+          activeNativeSound = sound;
+        } catch {
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+        }
       }
-    } else {
-      try {
-        const { Audio } = require('expo-av');
-        await Audio.setAudioModeAsync({
-          playsInSilentModeIOS: true,
-          staysActiveInBackground: true,
-          shouldDuckAndroid: true,
-        });
-
-        const notesMap: Record<RingtoneId, { freq: number; duration: number }[]> = {
-          gentle_chime: [
-            { freq: 523.25, duration: 0.15 },
-            { freq: 659.25, duration: 0.15 },
-            { freq: 783.99, duration: 0.2 },
-            { freq: 1046.5, duration: 0.5 },
-            { freq: 0, duration: 0.2 },
-            { freq: 523.25, duration: 0.15 },
-            { freq: 659.25, duration: 0.15 },
-            { freq: 783.99, duration: 0.2 },
-            { freq: 1046.5, duration: 0.8 },
-          ],
-          digital_alarm: [
-            { freq: 880, duration: 0.14 },
-            { freq: 0, duration: 0.06 },
-            { freq: 1760, duration: 0.14 },
-            { freq: 0, duration: 0.06 },
-            { freq: 880, duration: 0.14 },
-            { freq: 0, duration: 0.2 },
-            { freq: 880, duration: 0.14 },
-            { freq: 0, duration: 0.06 },
-            { freq: 1760, duration: 0.14 },
-            { freq: 0, duration: 0.06 },
-            { freq: 880, duration: 0.14 },
-          ],
-          marimba: [
-            { freq: 523.25, duration: 0.12 },
-            { freq: 659.25, duration: 0.12 },
-            { freq: 783.99, duration: 0.12 },
-            { freq: 1046.5, duration: 0.2 },
-            { freq: 783.99, duration: 0.12 },
-            { freq: 1046.5, duration: 0.4 },
-            { freq: 0, duration: 0.15 },
-            { freq: 523.25, duration: 0.12 },
-            { freq: 659.25, duration: 0.12 },
-            { freq: 783.99, duration: 0.12 },
-            { freq: 1046.5, duration: 0.5 },
-          ],
-          clock_beep: [
-            { freq: 1046.5, duration: 0.08 },
-            { freq: 0, duration: 0.05 },
-            { freq: 1046.5, duration: 0.08 },
-            { freq: 0, duration: 0.3 },
-            { freq: 1046.5, duration: 0.08 },
-            { freq: 0, duration: 0.05 },
-            { freq: 1046.5, duration: 0.08 },
-            { freq: 0, duration: 0.3 },
-            { freq: 1046.5, duration: 0.08 },
-            { freq: 0, duration: 0.05 },
-            { freq: 1046.5, duration: 0.08 },
-          ],
-          zen_gong: [
-            { freq: 216, duration: 1.2 },
-            { freq: 432, duration: 1.0 },
-            { freq: 216, duration: 1.5 },
-          ],
-        };
-
-        const notes = notesMap[ringtoneId] || notesMap.gentle_chime;
-        const totalSec = notes.reduce((acc, n) => acc + n.duration, 0) + 0.3;
-        const wavUri = generateWavDataUri(notes, totalSec);
-
-        const { sound } = await Audio.Sound.createAsync(
-          { uri: wavUri },
-          { shouldPlay: true, volume: Math.max(0.1, Math.min(1, volume)) }
-        );
-        activeNativeSound = sound;
-      } catch {
-        // Fallback haptics
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
-      }
+    } catch (err) {
+      console.warn('Error playing alarm pulse:', err);
     }
+  };
 
-    // Auto-stop alarm after 5 seconds if not manually dismissed
+  try {
+    // Initial immediate play
+    await playPulse();
+
+    // Loop alarm like a real alarm clock every 3.2 seconds until user dismisses/silences it
+    alarmLoopInterval = setInterval(() => {
+      if (!isCurrentlyPlaying) {
+        if (alarmLoopInterval) clearInterval(alarmLoopInterval);
+        return;
+      }
+      void playPulse();
+    }, 3200);
+
+    // Safety cutoff after 90 seconds in case device is unattended
     stopTimeoutHandle = setTimeout(() => {
-      stopAlarm();
-    }, 5000);
+      void stopAlarm();
+    }, 90000);
   } catch (err) {
-    console.warn('Error playing alarm:', err);
+    console.warn('Error initiating alarm:', err);
     isCurrentlyPlaying = false;
   }
 }

@@ -33,6 +33,10 @@ import {
   DEFAULT_CONFIG,
 } from '@/src/engine/timerEngine';
 import { playAlarm, stopAlarm, RingtoneId } from '@/src/services/audioService';
+import {
+  requestNotificationPermissions,
+  dismissActiveNotifications,
+} from '@/src/services/backgroundTimerService';
 import { activityRepository } from '@/src/storage/ActivityRepository';
 import { ActivityRecord, DailyStats } from '@/src/storage/schema';
 
@@ -91,6 +95,7 @@ export default function TimerScreen() {
   const handleSilenceAlarm = useCallback(() => {
     stopAlarm();
     setAlarmActive(false);
+    void dismissActiveNotifications();
   }, []);
 
   useFocusEffect(
@@ -144,6 +149,7 @@ export default function TimerScreen() {
 
   const handleStartWithStopAlarm = () => {
     handleSilenceAlarm();
+    void requestNotificationPermissions();
     start();
   };
 
@@ -190,6 +196,24 @@ export default function TimerScreen() {
   if (isBreakPhase) {
     return (
       <SafeAreaView style={styles.safeArea}>
+        {alarmActive && (
+          <View style={[styles.alarmBanner, { marginHorizontal: Spacing.md, marginTop: Spacing.sm }]}>
+            <View style={styles.alarmBannerInfo}>
+              <Text style={styles.alarmBell}>🔔</Text>
+              <View>
+                <Text style={styles.alarmTitle}>Focus Complete!</Text>
+                <Text style={styles.alarmSub}>Alarm is ringing · Tap to silence</Text>
+              </View>
+            </View>
+            <Button
+              title="Silence (✕)"
+              size="small"
+              variant="secondary"
+              onPress={handleSilenceAlarm}
+              style={styles.silenceBtn}
+            />
+          </View>
+        )}
         <MovementBreakView
           snapshot={snapshot}
           onRecordResponse={(action) => {
@@ -290,7 +314,7 @@ export default function TimerScreen() {
               </View>
             </View>
             <Button
-              title="Silence"
+              title="Silence (✕)"
               size="small"
               variant="secondary"
               onPress={handleSilenceAlarm}

@@ -16,6 +16,16 @@ import {
   CompletedActivityEvent,
   TimerMode,
 } from '@/src/engine/timerEngine';
+import {
+  scheduleBackgroundTimerAlarm,
+  cancelBackgroundTimerAlarm,
+  saveBackgroundTimerSnapshot,
+  getBackgroundTimerSnapshot,
+  clearBackgroundTimerSnapshot,
+  setupAlarmNotificationChannel,
+  dismissActiveNotifications,
+  showWebNotification,
+} from '@/src/services/backgroundTimerService';
 
 interface UseTimerOptions {
   config?: TimerConfig;
@@ -43,6 +53,44 @@ export function useTimer({
 
   const onPhaseCompletedRef = useRef(onPhaseCompleted);
   onPhaseCompletedRef.current = onPhaseCompleted;
+
+  // On mount: initialize background notification channel & restore any background timer
+  useEffect(() => {
+    let isMounted = true;
+
+    async function initBackground() {
+      await setupAlarmNotificationChannel();
+      const persisted = await getBackgroundTimerSnapshot();
+      if (!isMounted || !persisted) return;
+
+      if (persisted.state === 'running_focus' || persisted.state === 'running_break') {
+        const { snapshot: restored, completedActivity } = restoreTimerState(
+          persisted,
+          configRef.current,
+          Date.now()
+        );
+        setSnapshot(restored);
+
+        if (completedActivity) {
+          const finishedPhase = persisted.state === 'running_focus' ? 'focus' : 'break';
+          onActivityCompletedRef.current?.(completedActivity);
+          onPhaseCompletedRef.current?.(finishedPhase);
+          await clearBackgroundTimerSnapshot();
+          await dismissActiveNotifications();
+        } else if (restored.state === 'running_focus' || restored.state === 'running_break') {
+          // Re-schedule alarm for remaining duration
+          const phase = restored.state === 'running_focus' ? 'focus' : 'break';
+          await scheduleBackgroundTimerAlarm(phase, restored.remainingSeconds, restored.repGoal);
+        }
+      }
+    }
+
+    void initBackground();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   useEffect(() => {
     configRef.current = config;
@@ -77,8 +125,19 @@ export function useTimer({
     if (completedActivity) {
       onActivityCompletedRef.current?.(completedActivity);
     }
+
     if (phaseCompleted) {
       onPhaseCompletedRef.current?.(phaseCompleted);
+
+      if (next.state === 'running_break') {
+        // Transitioned from Focus to Break: schedule break alarm
+        void scheduleBackgroundTimerAlarm('break', next.remainingSeconds, next.repGoal);
+        void saveBackgroundTimerSnapshot(next);
+      } else {
+        // Timer fully ended
+        void clearBackgroundTimerSnapshot();
+        void cancelBackgroundTimerAlarm();
+      }
     }
   }, []);
 
@@ -89,46 +148,58 @@ export function useTimer({
 
     if (!isRunning) return;
 
-    // Run tick immediately then every 500ms
     const interval = setInterval(handleTick, 500);
     return () => clearInterval(interval);
   }, [snapshot.state, handleTick]);
 
-  // AppState listener for background/foreground recovery
+  // AppState & visibility listener for background/foreground recovery
   useEffect(() => {
+    const restoreFromBackground = (isFromWeb: boolean = false) => {
+      const current = snapshotRef.current;
+      if (current.state !== 'running_focus' && current.state !== 'running_break') {
+        return;
+      }
+
+      const { snapshot: restored, completedActivity } = restoreTimerState(
+        current,
+        configRef.current,
+        Date.now()
+      );
+      setSnapshot(restored);
+
+      if (completedActivity) {
+        const finishedPhase = current.state === 'running_focus' ? 'focus' : 'break';
+        onActivityCompletedRef.current?.(completedActivity);
+        onPhaseCompletedRef.current?.(finishedPhase);
+
+        if (isFromWeb) {
+          showWebNotification(
+            finishedPhase === 'focus' ? '🔔 Focus Complete!' : '🔔 Break Complete!',
+            'Timer finished. Tap to silence alarm.'
+          );
+        }
+
+        void clearBackgroundTimerSnapshot();
+        void dismissActiveNotifications();
+      } else if (restored.state === 'running_focus' || restored.state === 'running_break') {
+        // Re-sync background notification with current remaining time
+        const phase = restored.state === 'running_focus' ? 'focus' : 'break';
+        void scheduleBackgroundTimerAlarm(phase, restored.remainingSeconds, restored.repGoal);
+        void saveBackgroundTimerSnapshot(restored);
+      }
+    };
+
     const handleAppStateChange = (nextAppState: AppStateStatus) => {
       if (nextAppState === 'active') {
-        // App returned to foreground: restore accurate wall-clock time
-        const current = snapshotRef.current;
-        const { snapshot: restored, completedActivity } = restoreTimerState(
-          current,
-          configRef.current,
-          Date.now()
-        );
-        setSnapshot(restored);
-
-        if (completedActivity) {
-          onActivityCompletedRef.current?.(completedActivity);
-        }
+        restoreFromBackground(false);
       }
     };
 
     const subscription = AppState.addEventListener('change', handleAppStateChange);
 
-    // Also attach window focus listener for web browsers
     const handleWebVisibilityChange = () => {
       if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
-        const current = snapshotRef.current;
-        const { snapshot: restored, completedActivity } = restoreTimerState(
-          current,
-          configRef.current,
-          Date.now()
-        );
-        setSnapshot(restored);
-
-        if (completedActivity) {
-          onActivityCompletedRef.current?.(completedActivity);
-        }
+        restoreFromBackground(true);
       }
     };
 
@@ -148,33 +219,60 @@ export function useTimer({
 
   // Actions
   const handleStart = useCallback(() => {
-    setSnapshot((curr) => startFocus(curr, configRef.current, Date.now()));
+    setSnapshot((curr) => {
+      const next = startFocus(curr, configRef.current, Date.now());
+      void scheduleBackgroundTimerAlarm('focus', next.remainingSeconds, next.repGoal);
+      void saveBackgroundTimerSnapshot(next);
+      return next;
+    });
   }, []);
 
   const handlePause = useCallback(() => {
-    setSnapshot((curr) => pauseTimer(curr, Date.now()));
+    setSnapshot((curr) => {
+      const next = pauseTimer(curr, Date.now());
+      void cancelBackgroundTimerAlarm();
+      void saveBackgroundTimerSnapshot(next);
+      return next;
+    });
   }, []);
 
   const handleResume = useCallback(() => {
-    setSnapshot((curr) => resumeTimer(curr, Date.now()));
+    setSnapshot((curr) => {
+      const next = resumeTimer(curr, Date.now());
+      const phase = next.state === 'running_focus' ? 'focus' : 'break';
+      void scheduleBackgroundTimerAlarm(phase, next.remainingSeconds, next.repGoal);
+      void saveBackgroundTimerSnapshot(next);
+      return next;
+    });
   }, []);
 
   const handleReset = useCallback(() => {
-    setSnapshot((curr) => resetTimer(curr, configRef.current));
+    setSnapshot((curr) => {
+      const next = resetTimer(curr, configRef.current);
+      void cancelBackgroundTimerAlarm();
+      void clearBackgroundTimerSnapshot();
+      return next;
+    });
   }, []);
 
   const handleModeChange = useCallback((newMode: TimerMode, forceReset?: boolean) => {
     setSnapshot((curr) => {
       if (curr.state !== 'idle_focus' && curr.state !== 'ready_focus' && !forceReset) {
-        return curr; // don't change mode while running without explicit reset
+        return curr;
       }
+      void cancelBackgroundTimerAlarm();
+      void clearBackgroundTimerSnapshot();
       return createInitialSnapshot(newMode, configRef.current);
     });
   }, []);
 
   const handleBreakResponse = useCallback(
     (action: 'done' | 'skip' | 'other' | 'rest_only', otherName?: string) => {
-      setSnapshot((curr) => recordBreakResponse(curr, action, otherName));
+      setSnapshot((curr) => {
+        const next = recordBreakResponse(curr, action, otherName);
+        void saveBackgroundTimerSnapshot(next);
+        return next;
+      });
     },
     []
   );
@@ -186,6 +284,8 @@ export function useTimer({
       configRef.current
     );
     setSnapshot(next);
+    void cancelBackgroundTimerAlarm();
+    void clearBackgroundTimerSnapshot();
     if (completedActivity) {
       onActivityCompletedRef.current?.(completedActivity);
     }

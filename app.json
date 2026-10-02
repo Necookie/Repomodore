@@ -25,7 +25,11 @@
       },
       "package": "com.necookie.repomodore",
       "permissions": [
-        "NOTIFICATIONS"
+        "NOTIFICATIONS",
+        "POST_NOTIFICATIONS",
+        "VIBRATE",
+        "WAKE_LOCK",
+        "SCHEDULE_EXACT_ALARM"
       ]
     },
     "web": {
@@ -45,7 +49,8 @@
       "expo-sqlite",
       "expo-asset",
       "expo-av",
-      "expo-updates"
+      "expo-updates",
+      "expo-notifications"
     ],
     "scheme": "repomodore"
   }
