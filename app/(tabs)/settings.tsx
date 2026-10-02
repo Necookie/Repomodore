@@ -13,7 +13,11 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { useAuth } from '@clerk/clerk-expo';
+import * as Linking from 'expo-linking';
+import { Download } from 'lucide-react-native';
 import { Colors, Radius, Spacing } from '@/src/constants/theme';
+import { APK_DOWNLOAD_URL } from '@/src/constants/links';
+import { AndroidIcon } from '@/src/components/AndroidIcon';
 import { Card } from '@/src/components/Card';
 import { Button } from '@/src/components/Button';
 import { Mascot } from '@/src/components/Mascot';
@@ -578,6 +582,30 @@ export default function SettingsScreen() {
           <Text style={styles.updateNoteText}>
             Over-the-air updates deliver fixes and improvements directly to your phone without reinstalling the APK.
           </Text>
+
+          {Platform.OS === 'web' && (
+            <>
+              <View style={styles.divider} />
+              <View style={styles.settingRow}>
+                <View style={styles.settingLabelCol}>
+                  <Text style={styles.settingLabel}>Android Mobile APK</Text>
+                  <Text style={styles.settingHint}>
+                    Install standalone APK on your Android device for native offline performance.
+                  </Text>
+                </View>
+              </View>
+              <View style={styles.btnRow}>
+                <Button
+                  title="Download Android APK"
+                  variant="primary"
+                  icon={<AndroidIcon size={18} color="#FFFFFF" />}
+                  onPress={() => Linking.openURL(APK_DOWNLOAD_URL)}
+                  style={styles.actionBtn}
+                  accessibilityLabel="Download Android APK"
+                />
+              </View>
+            </>
+          )}
         </Card>
 
         {/* Section: Data & Storage */}

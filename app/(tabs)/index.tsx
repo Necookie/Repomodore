@@ -6,11 +6,16 @@ import {
   ScrollView,
   Alert,
   Platform,
+  Pressable,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '@clerk/clerk-expo';
 import { useFocusEffect } from 'expo-router';
-import { Colors, Spacing } from '@/src/constants/theme';
+import * as Linking from 'expo-linking';
+import { Download } from 'lucide-react-native';
+import { Colors, Radius, Spacing } from '@/src/constants/theme';
+import { APK_DOWNLOAD_URL } from '@/src/constants/links';
+import { AndroidIcon } from '@/src/components/AndroidIcon';
 import { Mascot } from '@/src/components/Mascot';
 import { FocusCompanion } from '@/src/components/FocusCompanion';
 import { Button } from '@/src/components/Button';
@@ -225,6 +230,18 @@ export default function TimerScreen() {
             <Text style={styles.wordmark}>Repomodore</Text>
           </View>
           <Text style={styles.tagline}>Focus. Rep. Repeat.</Text>
+
+          {Platform.OS === 'web' && (
+            <Pressable
+              onPress={() => Linking.openURL(APK_DOWNLOAD_URL)}
+              style={styles.webDownloadPill}
+              accessibilityRole="button"
+              accessibilityLabel="Download Android APK"
+            >
+              <AndroidIcon size={14} color="#3DDC84" />
+              <Text style={styles.webDownloadPillText}>Download Android APK</Text>
+            </Pressable>
+          )}
         </View>
 
         {/* Mode Segmented Control */}
@@ -425,6 +442,21 @@ const styles = StyleSheet.create({
     color: Colors.muted,
     fontWeight: '500',
     marginTop: 2,
+  },
+  webDownloadPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.accentSoft,
+    paddingHorizontal: Spacing.sm + 4,
+    paddingVertical: 5,
+    borderRadius: Radius.pill,
+    marginTop: Spacing.xs + 4,
+    gap: 6,
+  },
+  webDownloadPillText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: Colors.accent,
   },
   modeControlWrapper: {
     width: '100%',
