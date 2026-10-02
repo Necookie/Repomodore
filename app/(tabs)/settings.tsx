@@ -17,6 +17,7 @@ import * as Linking from 'expo-linking';
 import { Download } from 'lucide-react-native';
 import { Colors, Radius, Spacing } from '@/src/constants/theme';
 import { APK_DOWNLOAD_URL } from '@/src/constants/links';
+import { downloadApk } from '@/src/utils/downloadApk';
 import { AndroidIcon } from '@/src/components/AndroidIcon';
 import { Card } from '@/src/components/Card';
 import { Button } from '@/src/components/Button';
@@ -599,7 +600,7 @@ export default function SettingsScreen() {
                   title="Download Android APK"
                   variant="primary"
                   icon={<AndroidIcon size={18} color="#FFFFFF" />}
-                  onPress={() => Linking.openURL(APK_DOWNLOAD_URL)}
+                  onPress={() => downloadApk()}
                   style={styles.actionBtn}
                   accessibilityLabel="Download Android APK"
                 />

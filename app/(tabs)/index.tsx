@@ -15,6 +15,7 @@ import * as Linking from 'expo-linking';
 import { Download } from 'lucide-react-native';
 import { Colors, Radius, Spacing } from '@/src/constants/theme';
 import { APK_DOWNLOAD_URL } from '@/src/constants/links';
+import { downloadApk } from '@/src/utils/downloadApk';
 import { AndroidIcon } from '@/src/components/AndroidIcon';
 import { Mascot } from '@/src/components/Mascot';
 import { FocusCompanion } from '@/src/components/FocusCompanion';
@@ -233,7 +234,7 @@ export default function TimerScreen() {
 
           {Platform.OS === 'web' && (
             <Pressable
-              onPress={() => Linking.openURL(APK_DOWNLOAD_URL)}
+              onPress={() => downloadApk()}
               style={styles.webDownloadPill}
               accessibilityRole="button"
               accessibilityLabel="Download Android APK"

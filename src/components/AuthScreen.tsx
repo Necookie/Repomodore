@@ -15,6 +15,7 @@ import * as WebBrowser from 'expo-web-browser';
 import * as Linking from 'expo-linking';
 import { Colors, Radius, Spacing } from '@/src/constants/theme';
 import { APK_DOWNLOAD_URL } from '@/src/constants/links';
+import { downloadApk } from '@/src/utils/downloadApk';
 import { Mascot } from '@/src/components/Mascot';
 import { Button } from '@/src/components/Button';
 import { Card } from '@/src/components/Card';
@@ -178,7 +179,7 @@ export const AuthScreen: React.FC = () => {
   };
 
   const handleDownloadApk = () => {
-    Linking.openURL(APK_DOWNLOAD_URL);
+    downloadApk();
   };
 
   return (
