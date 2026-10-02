@@ -2,8 +2,21 @@ name: Build Android Mobile APK
 
 on:
   workflow_dispatch:
+    inputs:
+      create_release:
+        description: 'Publish as GitHub Release with downloadable APK'
+        type: boolean
+        default: false
+        required: false
+      tag_name:
+        description: 'Release Tag (e.g. v1.0.1, optional)'
+        type: string
+        default: ''
+        required: false
   push:
     branches: [main]
+    tags:
+      - 'v*'
     paths:
       - 'src/**'
       - 'app/**'
@@ -12,6 +25,9 @@ on:
       - 'app.json'
       - 'package.json'
       - '.github/workflows/build-apk.yml'
+
+permissions:
+  contents: write
 
 jobs:
   build-android:
@@ -60,9 +76,25 @@ jobs:
           EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY: pk_test_Y2xlcmsuZXhhbXBsZS5jb20k
           EXPO_PUBLIC_SYNC_API_URL: https://api.repomodore.app
 
-      - name: Upload Android APK
+      - name: Prepare Named Release APK
+        run: |
+          cp android/app/build/outputs/apk/debug/app-debug.apk Repomodore-release.apk
+
+      - name: Upload Android APK Artifact
         uses: actions/upload-artifact@v4
         with:
           name: repomodore-mobile-apk
-          path: android/app/build/outputs/apk/debug/app-debug.apk
+          path: Repomodore-release.apk
           retention-days: 30
+
+      - name: Publish to GitHub Releases
+        if: startsWith(github.ref, 'refs/tags/v') || github.event.inputs.create_release == 'true'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.event.inputs.tag_name || github.ref_name }}
+          name: ${{ github.event.inputs.tag_name || github.ref_name }}
+          files: Repomodore-release.apk
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
