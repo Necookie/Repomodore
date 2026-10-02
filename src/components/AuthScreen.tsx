@@ -8,14 +8,24 @@ import {
   KeyboardAvoidingView,
   Platform,
   Pressable,
+  useWindowDimensions,
 } from 'react-native';
 import { useSignIn, useSignUp, useOAuth } from '@clerk/clerk-expo';
 import * as WebBrowser from 'expo-web-browser';
 import * as Linking from 'expo-linking';
 import { Colors, Radius, Spacing } from '@/src/constants/theme';
+import { APK_DOWNLOAD_URL } from '@/src/constants/links';
 import { Mascot } from '@/src/components/Mascot';
 import { Button } from '@/src/components/Button';
 import { Card } from '@/src/components/Card';
+import { AndroidIcon } from '@/src/components/AndroidIcon';
+import {
+  Download,
+  Timer,
+  Dumbbell,
+  ShieldCheck,
+  Sparkles,
+} from 'lucide-react-native';
 
 export const useWarmUpBrowser = () => {
   React.useEffect(() => {
@@ -30,6 +40,8 @@ export const useWarmUpBrowser = () => {
 
 export const AuthScreen: React.FC = () => {
   useWarmUpBrowser();
+  const { width } = useWindowDimensions();
+  const isDesktop = width >= 860;
 
   const { signIn, setActive: setSignInActive, isLoaded: isSignInLoaded } = useSignIn();
   const { signUp, setActive: setSignUpActive, isLoaded: isSignUpLoaded } = useSignUp();
@@ -63,7 +75,6 @@ export const AuthScreen: React.FC = () => {
       }
     } catch (err: any) {
       console.warn(`OAuth with ${providerName} error:`, err);
-      // Give actionable feedback
       setErrorMessage(
         err?.errors?.[0]?.longMessage ||
         err?.errors?.[0]?.message ||
@@ -122,7 +133,6 @@ export const AuthScreen: React.FC = () => {
         password,
       });
 
-      // Prepare email verification code
       await signUp.prepareEmailAddressVerification({ strategy: 'email_code' });
       setPendingVerification(true);
     } catch (err: any) {
@@ -167,6 +177,10 @@ export const AuthScreen: React.FC = () => {
     }
   };
 
+  const handleDownloadApk = () => {
+    Linking.openURL(APK_DOWNLOAD_URL);
+  };
+
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -175,151 +189,264 @@ export const AuthScreen: React.FC = () => {
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
       >
-        <View style={styles.cardWrapper}>
-          <Card variant="dark" style={styles.authCard}>
-            {/* Mascot header */}
-            <View style={styles.mascotWrapper}>
-              <View style={styles.avatarCircle}>
-                <Mascot pose="avatar" size={72} alt="Repomodore mascot face" />
+        {/* Top Navbar */}
+        <View style={styles.navBar}>
+          <View style={styles.brandGroup}>
+            <Mascot pose="avatar" size={36} alt="Repomodore Logo" />
+            <Text style={styles.navWordmark}>Repomodore</Text>
+          </View>
+          <Pressable
+            onPress={handleDownloadApk}
+            style={styles.navDownloadBadge}
+            accessibilityRole="button"
+            accessibilityLabel="Download Android APK"
+          >
+            <AndroidIcon size={18} color="#3DDC84" />
+            <Text style={styles.navDownloadText}>Get Android App</Text>
+          </Pressable>
+        </View>
+
+        {/* Main Hero Container */}
+        <View style={[styles.mainHeroContainer, isDesktop ? styles.desktopRow : styles.mobileCol]}>
+          
+          {/* Left Column: Brand Hero & Value Proposition & Mobile Download */}
+          <View style={[styles.heroLeftCol, isDesktop && styles.heroLeftColDesktop]}>
+            
+            {/* Tagline Badge */}
+            <View style={styles.taglineBadge}>
+              <Sparkles size={14} color={Colors.accent} />
+              <Text style={styles.taglineBadgeText}>Warm Study Desk Meets Playful Gym Habit</Text>
+            </View>
+
+            {/* Mascot Showcase Illustration */}
+            <View style={styles.heroMascotWrap}>
+              <Mascot
+                pose="welcome"
+                size={isDesktop ? 160 : 130}
+                motion="calm"
+                alt="Repomodore white gym rat mascot in gray hoodie with laptop and dumbbell"
+              />
+            </View>
+
+            {/* Headline and Narrative Copy */}
+            <Text style={styles.heroHeadline}>Focus. Rep. Repeat.</Text>
+            <Text style={styles.heroSubtext}>
+              Protect your deep study flow with 25-minute Pomodoro intervals, then stand up for guided squat breaks. Built with generous whitespace and friendly encouragement.
+            </Text>
+
+            {/* Key Value Feature Pills */}
+            <View style={styles.featurePillsRow}>
+              <View style={styles.featurePill}>
+                <Timer size={16} color={Colors.accent} />
+                <Text style={styles.featurePillText}>25/5 Pomodoro rhythm</Text>
+              </View>
+              <View style={styles.featurePill}>
+                <Dumbbell size={16} color={Colors.accent} />
+                <Text style={styles.featurePillText}>10 Squat habit cues</Text>
+              </View>
+              <View style={styles.featurePill}>
+                <ShieldCheck size={16} color={Colors.accent} />
+                <Text style={styles.featurePillText}>Local-first & private</Text>
               </View>
             </View>
 
-            {/* Title & Tagline */}
-            <Text style={styles.wordmark}>Repomodore</Text>
-            <Text style={styles.tagline}>Focus. Rep. Repeat.</Text>
-            <Text style={styles.subtitle}>
-              {pendingVerification
-                ? 'Check your email for the verification code'
-                : 'Sign in to start your Repomodoros'}
-            </Text>
-
-            {errorMessage ? (
-              <View style={styles.errorContainer} accessibilityRole="alert">
-                <Text style={styles.errorText}>{errorMessage}</Text>
-              </View>
-            ) : null}
-
-            {pendingVerification ? (
-              /* Verification Code Form */
-              <View style={styles.formContainer}>
-                <Text style={styles.inputLabel}>Verification Code</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="Enter 6-digit code"
-                  placeholderTextColor="#7E848F"
-                  value={verificationCode}
-                  onChangeText={setVerificationCode}
-                  keyboardType="numeric"
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                  accessibilityLabel="Verification Code"
-                />
-                <Button
-                  title="Verify & Continue"
-                  onPress={handleVerifyCode}
-                  loading={loading}
-                  style={styles.actionBtn}
-                />
-                <Button
-                  title="Back to Sign In"
-                  onPress={() => {
-                    setPendingVerification(false);
-                    setErrorMessage(null);
-                  }}
-                  variant="ghost"
-                  textStyle={styles.ghostText}
-                />
-              </View>
-            ) : (
-              /* Normal Auth Form */
-              <View style={styles.formContainer}>
-                {/* OAuth Buttons */}
-                <Button
-                  title="Continue with Google"
-                  variant="secondary"
-                  onPress={() => handleOAuth(startGoogleFlow, 'Google')}
-                  disabled={loading}
-                  style={styles.oauthBtn}
-                  textStyle={styles.oauthBtnText}
-                />
-                <Button
-                  title="Continue with GitHub"
-                  variant="secondary"
-                  onPress={() => handleOAuth(startGithubFlow, 'GitHub')}
-                  disabled={loading}
-                  style={styles.oauthBtn}
-                  textStyle={styles.oauthBtnText}
-                />
-
-                <View style={styles.dividerRow}>
-                  <View style={styles.dividerLine} />
-                  <Text style={styles.dividerText}>or continue with email</Text>
-                  <View style={styles.dividerLine} />
+            {/* Prominent Android Mobile Download Card */}
+            <Card style={styles.mobileDownloadCard}>
+              <View style={styles.mobileDownloadHeader}>
+                <View style={styles.androidIconWrapper}>
+                  <AndroidIcon size={26} color="#3DDC84" />
                 </View>
+                <View style={styles.mobileDownloadHeaderText}>
+                  <Text style={styles.mobileDownloadTitle}>Repomodore for Android</Text>
+                  <Text style={styles.mobileDownloadSubtitle}>
+                    Native background alarms, haptics, and instant offline timers.
+                  </Text>
+                </View>
+              </View>
 
-                {/* Email & Password inputs */}
-                <Text style={styles.inputLabel}>Email address</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="you@example.com"
-                  placeholderTextColor="#7E848F"
-                  value={email}
-                  onChangeText={setEmail}
-                  keyboardType="email-address"
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                  accessibilityLabel="Email Address"
-                />
+              <Button
+                title="Download Android APK"
+                variant="primary"
+                icon={<AndroidIcon size={20} color="#FFFFFF" />}
+                onPress={handleDownloadApk}
+                style={styles.downloadActionBtn}
+                accessibilityLabel="Download Repomodore Android APK package"
+              />
 
-                <Text style={styles.inputLabel}>Password</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="••••••••"
-                  placeholderTextColor="#7E848F"
-                  value={password}
-                  onChangeText={setPassword}
-                  secureTextEntry
-                  autoCapitalize="none"
-                  accessibilityLabel="Password"
-                />
+              <View style={styles.downloadMetaRow}>
+                <Text style={styles.downloadMetaText}>v1.0.0 · Standalone APK · No Play Store account required</Text>
+              </View>
+            </Card>
+          </View>
 
-                <Button
-                  title={authMode === 'signin' ? 'Sign In' : 'Create Account'}
-                  onPress={authMode === 'signin' ? handleEmailSignIn : handleEmailSignUp}
-                  loading={loading}
-                  style={styles.actionBtn}
-                />
-
+          {/* Right Column: Clerk Login / Registration Card */}
+          <View style={[styles.authRightCol, isDesktop && styles.authRightColDesktop]}>
+            <Card style={styles.authCard}>
+              
+              {/* Tab Mode Switcher (Sign In vs Create Account) */}
+              <View style={styles.tabSwitcher}>
                 <Pressable
                   onPress={() => {
-                    setAuthMode(authMode === 'signin' ? 'signup' : 'signin');
+                    setAuthMode('signin');
                     setErrorMessage(null);
                   }}
-                  style={styles.switchModeBtn}
+                  style={[styles.tabButton, authMode === 'signin' && styles.tabButtonActive]}
                   accessibilityRole="button"
                 >
-                  <Text style={styles.switchModeText}>
-                    {authMode === 'signin'
-                      ? "Don't have an account? Create one"
-                      : 'Already have an account? Sign In'}
+                  <Text style={[styles.tabButtonText, authMode === 'signin' && styles.tabButtonTextActive]}>
+                    Sign In
+                  </Text>
+                </Pressable>
+                <Pressable
+                  onPress={() => {
+                    setAuthMode('signup');
+                    setErrorMessage(null);
+                  }}
+                  style={[styles.tabButton, authMode === 'signup' && styles.tabButtonActive]}
+                  accessibilityRole="button"
+                >
+                  <Text style={[styles.tabButtonText, authMode === 'signup' && styles.tabButtonTextActive]}>
+                    Create Account
                   </Text>
                 </Pressable>
               </View>
-            )}
 
-            {/* Offline note */}
-            <View style={styles.offlineNotice}>
-              <Text style={styles.offlineNoticeText}>
-                Local-only by default. An internet connection is required only for initial sign-in; your timer and history will work completely offline once signed in.
+              {/* Card Title & Instructions */}
+              <Text style={styles.authCardTitle}>
+                {pendingVerification
+                  ? 'Verify your email'
+                  : authMode === 'signin'
+                  ? 'Welcome back!'
+                  : 'Start your Repomodoros'}
               </Text>
-            </View>
+              <Text style={styles.authCardSubtitle}>
+                {pendingVerification
+                  ? 'Enter the 6-digit confirmation code sent to your email.'
+                  : authMode === 'signin'
+                  ? 'Sign in with Clerk to sync sessions across all your devices.'
+                  : 'Create a free account to track your focus streaks anywhere.'}
+              </Text>
 
-            {/* Footer */}
-            <Text style={styles.footerText}>
-              By continuing, you agree to our Terms and Privacy Policy.
-            </Text>
-          </Card>
+              {/* Actionable Error Alert */}
+              {errorMessage ? (
+                <View style={styles.errorContainer} accessibilityRole="alert">
+                  <Text style={styles.errorText}>{errorMessage}</Text>
+                </View>
+              ) : null}
+
+              {pendingVerification ? (
+                /* Verification Code View */
+                <View style={styles.formContainer}>
+                  <Text style={styles.inputLabel}>Verification Code</Text>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="Enter 6-digit code"
+                    placeholderTextColor={Colors.muted}
+                    value={verificationCode}
+                    onChangeText={setVerificationCode}
+                    keyboardType="numeric"
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    accessibilityLabel="Verification Code"
+                  />
+                  <Button
+                    title="Verify & Continue"
+                    onPress={handleVerifyCode}
+                    loading={loading}
+                    style={styles.actionBtn}
+                  />
+                  <Button
+                    title="Back to Sign In"
+                    onPress={() => {
+                      setPendingVerification(false);
+                      setErrorMessage(null);
+                    }}
+                    variant="ghost"
+                    textStyle={styles.ghostText}
+                  />
+                </View>
+              ) : (
+                /* Main Sign In / Sign Up Form */
+                <View style={styles.formContainer}>
+                  
+                  {/* OAuth Social Buttons */}
+                  <Button
+                    title="Continue with Google"
+                    variant="secondary"
+                    onPress={() => handleOAuth(startGoogleFlow, 'Google')}
+                    disabled={loading}
+                    style={styles.oauthBtn}
+                    textStyle={styles.oauthBtnText}
+                  />
+                  <Button
+                    title="Continue with GitHub"
+                    variant="secondary"
+                    onPress={() => handleOAuth(startGithubFlow, 'GitHub')}
+                    disabled={loading}
+                    style={styles.oauthBtn}
+                    textStyle={styles.oauthBtnText}
+                  />
+
+                  {/* Divider Line */}
+                  <View style={styles.dividerRow}>
+                    <View style={styles.dividerLine} />
+                    <Text style={styles.dividerText}>or continue with email</Text>
+                    <View style={styles.dividerLine} />
+                  </View>
+
+                  {/* Email Input */}
+                  <Text style={styles.inputLabel}>Email address</Text>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="you@example.com"
+                    placeholderTextColor={Colors.muted}
+                    value={email}
+                    onChangeText={setEmail}
+                    keyboardType="email-address"
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    accessibilityLabel="Email Address"
+                  />
+
+                  {/* Password Input */}
+                  <Text style={styles.inputLabel}>Password</Text>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="••••••••"
+                    placeholderTextColor={Colors.muted}
+                    value={password}
+                    onChangeText={setPassword}
+                    secureTextEntry
+                    autoCapitalize="none"
+                    accessibilityLabel="Password"
+                  />
+
+                  {/* Primary Action Button */}
+                  <Button
+                    title={authMode === 'signin' ? 'Sign In' : 'Create Free Account'}
+                    onPress={authMode === 'signin' ? handleEmailSignIn : handleEmailSignUp}
+                    loading={loading}
+                    style={styles.actionBtn}
+                  />
+                </View>
+              )}
+
+              {/* Local-First Security Note */}
+              <View style={styles.offlineNotice}>
+                <ShieldCheck size={16} color={Colors.accent} />
+                <Text style={styles.offlineNoticeText}>
+                  Local-only by default. Sign-in is optional on mobile. All session timers and records work 100% offline.
+                </Text>
+              </View>
+
+              {/* Terms Footer */}
+              <Text style={styles.footerText}>
+                Secured by Clerk. By continuing you agree to the Terms of Service.
+              </Text>
+            </Card>
+          </View>
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -333,76 +460,273 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     flexGrow: 1,
+    paddingHorizontal: Spacing.md,
+    paddingBottom: Spacing.xxl,
+    alignItems: 'center',
+  },
+  navBar: {
+    width: '100%',
+    maxWidth: 1140,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: Spacing.md,
+    marginBottom: Spacing.md,
+  },
+  brandGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+  },
+  navWordmark: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: Colors.ink,
+    letterSpacing: -0.4,
+  },
+  navDownloadBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: Colors.border,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: 8,
+    borderRadius: Radius.pill,
+    gap: 8,
+    shadowColor: Colors.ink,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    elevation: 1,
+  },
+  navDownloadText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: Colors.ink,
+  },
+  mainHeroContainer: {
+    width: '100%',
+    maxWidth: 1140,
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    gap: Spacing.xl,
+  },
+  desktopRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+  },
+  mobileCol: {
+    flexDirection: 'column',
+    alignItems: 'center',
+  },
+  heroLeftCol: {
+    width: '100%',
+  },
+  heroLeftColDesktop: {
+    flex: 1,
+    maxWidth: 580,
+    paddingRight: Spacing.lg,
+  },
+  taglineBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    backgroundColor: Colors.accentSoft,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: 6,
+    borderRadius: Radius.pill,
+    marginBottom: Spacing.md,
+    gap: 6,
+  },
+  taglineBadgeText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: Colors.accent,
+  },
+  heroMascotWrap: {
+    marginBottom: Spacing.sm,
+    alignItems: 'flex-start',
+  },
+  heroHeadline: {
+    fontSize: 38,
+    fontWeight: '800',
+    color: Colors.ink,
+    letterSpacing: -1,
+    marginBottom: Spacing.sm,
+    lineHeight: 44,
+  },
+  heroSubtext: {
+    fontSize: 16,
+    color: Colors.muted,
+    lineHeight: 24,
+    marginBottom: Spacing.lg,
+  },
+  featurePillsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: Spacing.sm,
+    marginBottom: Spacing.xl,
+  },
+  featurePill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.surface,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: 8,
+    borderRadius: Radius.md,
+    gap: 8,
+  },
+  featurePillText: {
+    fontSize: 13,
+    fontWeight: '500',
+    color: Colors.ink,
+  },
+  mobileDownloadCard: {
+    width: '100%',
+    padding: Spacing.lg,
+    backgroundColor: Colors.surface,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    borderRadius: Radius.lg,
+    shadowColor: Colors.ink,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+    elevation: 2,
+    marginBottom: Spacing.md,
+  },
+  mobileDownloadHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: Spacing.md,
+    gap: Spacing.md,
+  },
+  androidIconWrapper: {
+    width: 46,
+    height: 46,
+    borderRadius: Radius.md,
+    backgroundColor: '#E8F5E9',
     alignItems: 'center',
     justifyContent: 'center',
-    padding: Spacing.md,
   },
-  cardWrapper: {
+  mobileDownloadHeaderText: {
+    flex: 1,
+  },
+  mobileDownloadTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: Colors.ink,
+    marginBottom: 2,
+  },
+  mobileDownloadSubtitle: {
+    fontSize: 13,
+    color: Colors.muted,
+    lineHeight: 18,
+  },
+  downloadActionBtn: {
+    minHeight: 46,
+    marginBottom: Spacing.sm,
+  },
+  downloadMetaRow: {
+    alignItems: 'center',
+  },
+  downloadMetaText: {
+    fontSize: 11,
+    color: Colors.muted,
+  },
+  authRightCol: {
     width: '100%',
-    maxWidth: 420,
+  },
+  authRightColDesktop: {
+    flex: 1,
+    maxWidth: 460,
   },
   authCard: {
     padding: Spacing.xl,
-    alignItems: 'center',
+    backgroundColor: Colors.surface,
+    borderRadius: Radius.lg,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    shadowColor: Colors.ink,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.06,
+    shadowRadius: 16,
+    elevation: 3,
   },
-  mascotWrapper: {
-    marginBottom: Spacing.md,
-    alignItems: 'center',
-  },
-  avatarCircle: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: '#32353E',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 2,
-    borderColor: '#424652',
-  },
-  wordmark: {
-    fontSize: 28,
-    fontWeight: '700',
-    color: '#FFFFFF',
-    letterSpacing: -0.5,
-  },
-  tagline: {
-    fontSize: 14,
-    color: '#A0A5AC',
-    fontWeight: '500',
-    marginTop: 2,
-    marginBottom: Spacing.md,
-  },
-  subtitle: {
-    fontSize: 15,
-    color: '#E0E3EB',
-    textAlign: 'center',
+  tabSwitcher: {
+    flexDirection: 'row',
+    backgroundColor: '#F5F0EA',
+    borderRadius: Radius.md,
+    padding: 4,
     marginBottom: Spacing.lg,
+  },
+  tabButton: {
+    flex: 1,
+    paddingVertical: 8,
+    alignItems: 'center',
+    borderRadius: Radius.sm,
+  },
+  tabButtonActive: {
+    backgroundColor: Colors.surface,
+    shadowColor: Colors.ink,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 4,
+    elevation: 1,
+  },
+  tabButtonText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: Colors.muted,
+  },
+  tabButtonTextActive: {
+    fontWeight: '700',
+    color: Colors.ink,
+  },
+  authCardTitle: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: Colors.ink,
+    letterSpacing: -0.3,
+    marginBottom: 4,
+  },
+  authCardSubtitle: {
+    fontSize: 14,
+    color: Colors.muted,
+    marginBottom: Spacing.lg,
+    lineHeight: 20,
   },
   errorContainer: {
     width: '100%',
-    backgroundColor: 'rgba(211, 47, 47, 0.15)',
+    backgroundColor: Colors.errorSoft,
     borderWidth: 1,
-    borderColor: '#D32F2F',
+    borderColor: Colors.error,
     borderRadius: Radius.md,
     padding: Spacing.sm + 2,
     marginBottom: Spacing.md,
   },
   errorText: {
-    color: '#FF8A80',
+    color: Colors.error,
     fontSize: 13,
     textAlign: 'center',
+    fontWeight: '500',
   },
   formContainer: {
     width: '100%',
   },
   oauthBtn: {
     marginBottom: Spacing.sm,
-    backgroundColor: '#1E1F24',
-    borderColor: '#383B44',
+    backgroundColor: Colors.surface,
+    borderColor: Colors.border,
+    borderWidth: 1,
   },
   oauthBtnText: {
-    color: '#FFFFFF',
+    color: Colors.ink,
     fontWeight: '600',
+    fontSize: 14,
   },
   dividerRow: {
     flexDirection: 'row',
@@ -412,64 +736,57 @@ const styles = StyleSheet.create({
   dividerLine: {
     flex: 1,
     height: 1,
-    backgroundColor: '#3A3D47',
+    backgroundColor: Colors.border,
   },
   dividerText: {
-    color: '#8B919D',
+    color: Colors.muted,
     fontSize: 12,
     marginHorizontal: Spacing.sm,
   },
   inputLabel: {
-    color: '#D0D4DC',
+    color: Colors.ink,
     fontSize: 13,
-    fontWeight: '500',
+    fontWeight: '600',
     marginBottom: 6,
     marginTop: Spacing.xs,
   },
   input: {
     height: 48,
-    backgroundColor: '#1A1B20',
+    backgroundColor: '#FAFAF9',
     borderWidth: 1,
-    borderColor: '#3A3D47',
+    borderColor: Colors.border,
     borderRadius: Radius.md,
     paddingHorizontal: Spacing.md,
-    color: '#FFFFFF',
+    color: Colors.ink,
     fontSize: 15,
     marginBottom: Spacing.md,
   },
   actionBtn: {
     marginTop: Spacing.xs,
-    marginBottom: Spacing.md,
-  },
-  switchModeBtn: {
-    paddingVertical: Spacing.sm,
-    alignItems: 'center',
-  },
-  switchModeText: {
-    color: Colors.accent,
-    fontSize: 14,
-    fontWeight: '500',
+    marginBottom: Spacing.sm,
   },
   ghostText: {
-    color: '#A0A5AC',
+    color: Colors.muted,
   },
   offlineNotice: {
-    marginTop: Spacing.lg,
-    padding: Spacing.sm,
-    backgroundColor: '#1E1F24',
-    borderRadius: Radius.sm,
-    borderWidth: 1,
-    borderColor: '#32353E',
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: Spacing.md,
+    padding: Spacing.sm + 2,
+    backgroundColor: Colors.accentSoft,
+    borderRadius: Radius.md,
+    gap: 8,
   },
   offlineNoticeText: {
-    color: '#8E95A2',
+    flex: 1,
+    color: Colors.ink,
     fontSize: 12,
-    textAlign: 'center',
     lineHeight: 16,
+    fontWeight: '400',
   },
   footerText: {
-    fontSize: 12,
-    color: '#707682',
+    fontSize: 11,
+    color: Colors.muted,
     textAlign: 'center',
     marginTop: Spacing.md,
   },
